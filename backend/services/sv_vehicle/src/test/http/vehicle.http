@@ -1,5 +1,7 @@
 # Run requests with IntelliJ HTTP Client or the VS Code REST Client extension.
-# Start the service separately: ./gradlew bootRun
+# Start from the repository root: ./tools/run-local.sh
+# Random UUID per request: IntelliJ uses {{$uuid}}; VS Code REST Client uses {{$guid}}.
+# For VS Code, replace $uuid with $guid in the headers below.
 @baseUrl = http://localhost:9001
 @vehicleId = 00000000-0000-0000-0000-000000000001
 @userId = 00000000-0000-0000-0000-000000000100
@@ -9,32 +11,39 @@
 
 ### List inventory (200; up to 20 vehicles)
 GET {{baseUrl}}/vehicles?page=0&size=20
+X-Request-ID: {{$uuid}}
 Accept: application/json
 
 ### Filter by make, model, minimum age, and aging stock (200)
 GET {{baseUrl}}/vehicles?make=Toyota&model=Corolla&age=90&aging=true&page=0&size=10
+X-Request-ID: {{$uuid}}
 Accept: application/json
 
 ### Filter multiple makes and models (200)
 GET {{baseUrl}}/vehicles?make=Toyota&make=Honda&model=Corolla&model=Civic
+X-Request-ID: {{$uuid}}
 Accept: application/json
 
 ### Stock aged 90 days or less (200)
 GET {{baseUrl}}/vehicles?aging=false
+X-Request-ID: {{$uuid}}
 Accept: application/json
 
 ### Second page (200)
 GET {{baseUrl}}/vehicles?page=1&size=2
+X-Request-ID: {{$uuid}}
 Accept: application/json
 
 ### Available makes and models (200)
 GET {{baseUrl}}/vehicle-filters
+X-Request-ID: {{$uuid}}
 Accept: application/json
 
 ### Log a price reduction (204; increments rowVersion)
 # Run the inventory request first and set @rowVersion to the current value.
 # Omitting actionStatus defaults it to CREATED.
 POST {{baseUrl}}/update-vehicle-status
+X-Request-ID: {{$uuid}}
 Content-Type: application/json
 
 {
@@ -46,10 +55,12 @@ Content-Type: application/json
 
 ### Inspect the saved action and updated rowVersion (200)
 GET {{baseUrl}}/vehicles?make=Toyota&model=Corolla
+X-Request-ID: {{$uuid}}
 Accept: application/json
 
 ### Log maintenance in progress (204; refresh @rowVersion first)
 POST {{baseUrl}}/update-vehicle-status
+X-Request-ID: {{$uuid}}
 Content-Type: application/json
 
 {
@@ -62,6 +73,7 @@ Content-Type: application/json
 
 ### Stale version (409 after at least one successful update of this vehicle)
 POST {{baseUrl}}/update-vehicle-status
+X-Request-ID: {{$uuid}}
 Content-Type: application/json
 
 {
@@ -73,6 +85,7 @@ Content-Type: application/json
 
 ### Unknown vehicle (404)
 POST {{baseUrl}}/update-vehicle-status
+X-Request-ID: {{$uuid}}
 Content-Type: application/json
 
 {
@@ -84,10 +97,12 @@ Content-Type: application/json
 
 ### Invalid pagination (400)
 GET {{baseUrl}}/vehicles?page=-1&size=0
+X-Request-ID: {{$uuid}}
 Accept: application/json
 
 ### Invalid action (400)
 POST {{baseUrl}}/update-vehicle-status
+X-Request-ID: {{$uuid}}
 Content-Type: application/json
 
 {

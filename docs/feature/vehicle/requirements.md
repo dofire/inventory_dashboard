@@ -53,8 +53,9 @@ schema. Vehicle indexes support stocking date/ID ordering and make filtering.
 The repository currently seeds six vehicles with stable UUIDs ending in 1–6
 and stores updates/history in memory. It atomically checks the vehicle version
 and records actions; data resets on restart. User IDs are caller supplied for
-now, with no manager lookup or authentication. Database auto-configuration is
-disabled for this mock mode. A database-backed `VehicleRepository` can replace
+now, with no manager lookup or authentication. PostgreSQL connectivity is enabled for local infrastructure and health checks;
+business reads and writes still use the mock repository. Hibernate schema
+generation and Flyway migrations remain disabled. A database-backed `VehicleRepository` can replace
 this implementation later; it must preserve atomic optimistic concurrency and
 transactional action history. No database migrations are included yet.
 
@@ -75,3 +76,14 @@ migrations, and do not change the mocked repository.
 The vehicle service listens on port `9001` by default. Use
 `http://localhost:9001` for local API requests, as configured in
 [vehicle.http](../../../backend/services/sv_vehicle/vehicle.http).
+
+
+## Request correlation
+
+Vehicle APIs accept an optional UUID in the `X-Request-ID` header. Missing or
+invalid IDs are replaced with a generated UUID. The canonical ID is echoed in
+`X-Request-ID` on the response and included as `requestId` in request-scoped JSON
+logs. This is correlation metadata, not a JSON body field, trace ID, or
+idempotency key. Actuator endpoints are excluded from this request logger.
+The HTTP examples generate a fresh UUID for each request using IntelliJ's
+`{{$uuid}}`; VS Code REST Client users should replace it with `{{$guid}}`.

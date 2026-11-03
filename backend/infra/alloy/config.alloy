@@ -1,0 +1,29 @@
+local.file_match "vehicle" {
+  path_targets = [{ "__path__" = "/var/log/sv_vehicle/*.json", "app" = "sv_vehicle" }]
+}
+
+loki.source.file "vehicle" {
+  targets    = local.file_match.vehicle.targets
+  forward_to = [loki.process.vehicle.receiver]
+}
+
+loki.process "vehicle" {
+  stage.json {
+    expressions = { timestamp = "\"@timestamp\"", level = "level" }
+  }
+  stage.timestamp {
+    source = "timestamp"
+    format = "RFC3339Nano"
+  }
+  stage.labels {
+    values = { level = "" }
+  }
+  // traceId/spanId stay in the JSON body; never index them as labels.
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
