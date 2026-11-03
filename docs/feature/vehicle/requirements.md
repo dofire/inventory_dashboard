@@ -40,8 +40,12 @@ Example action request (first seeded vehicle, before any updates):
 ```
 
 `VehicleEntity` maps inventory fields (UUID, make, model, inventory status,
-price, stocking timestamp, optimistic version). Inventory statuses are `DRAFT`,
-`AVAILABLE`, `RESERVED`, `SOLD`, and `UNAVAILABLE`. Price ignores currency.
+price, currency, stocking timestamp, optimistic version). Inventory statuses are `DRAFT`,
+`AVAILABLE`, `RESERVED`, `SOLD`, and `UNAVAILABLE`. Price uses Java `Long` / SQL `BIGINT` and is expressed in the currency's minor
+units. Currency is a required uppercase three-letter ISO 4217 code, stored as
+`VARCHAR(3)` and returned as `currency` alongside `price` in API responses.
+For example, `{"price":2200000,"currency":"USD"}` means USD 22,000.00.
+Mock vehicles use USD and preserve their original monetary values in cents.
 `VehicleActionEntity` maps the vehicle UUID, action, action status, optimistic
 version, and creation/update timestamps and user UUIDs. Both use the `public`
 schema. Vehicle indexes support stocking date/ID ordering and make filtering.
@@ -64,3 +68,10 @@ Create `vehicle` before `vehicle_action` because actions reference a vehicle.
 UUIDs and audit values are application supplied; user UUIDs have no foreign key
 until a manager table is defined. These files are documentation, not automatic
 migrations, and do not change the mocked repository.
+
+
+## Local service port
+
+The vehicle service listens on port `9001` by default. Use
+`http://localhost:9001` for local API requests, as configured in
+[vehicle.http](../../../backend/services/sv_vehicle/vehicle.http).

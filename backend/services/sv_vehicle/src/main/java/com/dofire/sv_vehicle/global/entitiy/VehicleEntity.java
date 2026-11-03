@@ -5,7 +5,6 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -31,8 +30,11 @@ public class VehicleEntity {
     @Column(nullable = false)
     private VehicleStatus status;
 
-    @Column(nullable = false, precision = 19, scale = 2)
-    private BigDecimal price;
+    @Column(nullable = false)
+    private Long price;
+
+    @Column(nullable = false, length = 3)
+    private String currency;
 
     @Column(name = "stocked_at", nullable = false)
     private Instant stockedAt;
@@ -42,12 +44,13 @@ public class VehicleEntity {
     private long version;
 
     public VehicleEntity(UUID id, String make, String model, VehicleStatus status,
-                         BigDecimal price, Instant stockedAt) {
+                         Long price, String currency, Instant stockedAt) {
         this.id = id;
         this.make = make;
         this.model = model;
         this.status = status;
         this.price = price;
+        this.currency = currency;
         this.stockedAt = stockedAt;
     }
 }

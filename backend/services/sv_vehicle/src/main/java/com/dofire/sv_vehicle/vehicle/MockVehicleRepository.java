@@ -5,7 +5,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -21,18 +20,18 @@ public class MockVehicleRepository implements VehicleRepository {
 
     public MockVehicleRepository() {
         Instant now = Instant.now();
-        seed(1, "Toyota", "Corolla", "22000.00", 120, now);
-        seed(2, "Toyota", "Camry", "31000.00", 45, now);
-        seed(3, "Honda", "Civic", "25000.00", 95, now);
-        seed(4, "Honda", "Accord", "33000.00", 15, now);
-        seed(5, "Ford", "Focus", "18000.00", 180, now);
-        seed(6, "Ford", "Mustang", "45000.00", 90, now);
+        seed(1, "Toyota", "Corolla", 2200000L, 120, now);
+        seed(2, "Toyota", "Camry", 3100000L, 45, now);
+        seed(3, "Honda", "Civic", 2500000L, 95, now);
+        seed(4, "Honda", "Accord", 3300000L, 15, now);
+        seed(5, "Ford", "Focus", 1800000L, 180, now);
+        seed(6, "Ford", "Mustang", 4500000L, 90, now);
     }
 
-    private void seed(int number, String make, String model, String price, int days, Instant now) {
+    private void seed(int number, String make, String model, long price, int days, Instant now) {
         UUID id = new UUID(0, number);
         vehicles.put(id, new VehicleView(id, make, model, VehicleStatus.AVAILABLE,
-                new BigDecimal(price), now.minus(days, ChronoUnit.DAYS), 0, null, null));
+                price, "USD", now.minus(days, ChronoUnit.DAYS), 0, null, null));
     }
 
     @Override

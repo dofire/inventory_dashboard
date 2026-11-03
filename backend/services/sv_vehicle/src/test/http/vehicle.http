@@ -1,0 +1,98 @@
+# Run requests with IntelliJ HTTP Client or the VS Code REST Client extension.
+# Start the service separately: ./gradlew bootRun
+@baseUrl = http://localhost:9001
+@vehicleId = 00000000-0000-0000-0000-000000000001
+@userId = 00000000-0000-0000-0000-000000000100
+# Copy the selected vehicle's current rowVersion from GET /vehicles before updating.
+# A freshly started server seeds all vehicles with rowVersion 0.
+@rowVersion = 0
+
+### List inventory (200; up to 20 vehicles)
+GET {{baseUrl}}/vehicles?page=0&size=20
+Accept: application/json
+
+### Filter by make, model, minimum age, and aging stock (200)
+GET {{baseUrl}}/vehicles?make=Toyota&model=Corolla&age=90&aging=true&page=0&size=10
+Accept: application/json
+
+### Filter multiple makes and models (200)
+GET {{baseUrl}}/vehicles?make=Toyota&make=Honda&model=Corolla&model=Civic
+Accept: application/json
+
+### Stock aged 90 days or less (200)
+GET {{baseUrl}}/vehicles?aging=false
+Accept: application/json
+
+### Second page (200)
+GET {{baseUrl}}/vehicles?page=1&size=2
+Accept: application/json
+
+### Available makes and models (200)
+GET {{baseUrl}}/vehicle-filters
+Accept: application/json
+
+### Log a price reduction (204; increments rowVersion)
+# Run the inventory request first and set @rowVersion to the current value.
+# Omitting actionStatus defaults it to CREATED.
+POST {{baseUrl}}/update-vehicle-status
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "vehicleId": "{{vehicleId}}",
+  "rowVersion": {{rowVersion}},
+  "status": "PRICE_REDUCTION_PLANNED"
+}
+
+### Inspect the saved action and updated rowVersion (200)
+GET {{baseUrl}}/vehicles?make=Toyota&model=Corolla
+Accept: application/json
+
+### Log maintenance in progress (204; refresh @rowVersion first)
+POST {{baseUrl}}/update-vehicle-status
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "vehicleId": "{{vehicleId}}",
+  "rowVersion": {{rowVersion}},
+  "status": "MAINTENANCE_PLANNED",
+  "actionStatus": "IN_PROGRESS"
+}
+
+### Stale version (409 after at least one successful update of this vehicle)
+POST {{baseUrl}}/update-vehicle-status
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "vehicleId": "{{vehicleId}}",
+  "rowVersion": 0,
+  "status": "PRICE_REDUCTION_PLANNED"
+}
+
+### Unknown vehicle (404)
+POST {{baseUrl}}/update-vehicle-status
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "vehicleId": "00000000-0000-0000-0000-000000000999",
+  "rowVersion": 0,
+  "status": "PRICE_REDUCTION_PLANNED"
+}
+
+### Invalid pagination (400)
+GET {{baseUrl}}/vehicles?page=-1&size=0
+Accept: application/json
+
+### Invalid action (400)
+POST {{baseUrl}}/update-vehicle-status
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}",
+  "vehicleId": "{{vehicleId}}",
+  "rowVersion": {{rowVersion}},
+  "status": "INVALID_ACTION"
+}
