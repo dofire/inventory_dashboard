@@ -1,0 +1,3 @@
+spring:
+  application:
+    name: sv_vehicle
