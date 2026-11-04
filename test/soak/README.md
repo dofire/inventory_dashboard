@@ -63,8 +63,9 @@ The approximate workload is 65% inventory (with aging/make/sort variations),
 20% filter options, 10% login, and 5% action updates. Both dealerships and both
 mock accounts participate. VUs without an inventory snapshot substitute a read
 for an action. Calls validate correlation IDs, response envelopes, status codes,
-and returned vehicle/profile dealership IDs. Updates modify the in-memory action
-history; restarting the backend resets this data. Concurrent users can submit
+and returned vehicle/profile dealership IDs. Updates persist action
+history and increment vehicle versions in PostgreSQL; restarting the backend
+does not reset this data. Concurrent users can submit
 stale row versions: HTTP 409 is an expected concurrency outcome, counted as
 `action_conflicts`, and the stale vehicle is discarded until a later read.
 Other non-200 statuses fail checks. Grafana's existing outcome pie still counts
@@ -114,10 +115,13 @@ login has its own delay-span line. Allow a few collection/scrape intervals befor
 expecting span metrics. A delay-only P95 summarizes delayed calls, whereas full
 request P95 includes delayed and undelayed calls; these are different populations.
 
-Business repositories still use the mock store. This test exercises application
-concurrency and observability; it is **not a PostgreSQL query endurance test**.
-Database pool usage may remain idle. It does not fabricate query traffic or
-change persistence behavior.
+Business repositories query PostgreSQL for inventory and filter options and
+transactionally persist action history. The workload exercises real database
+connections and produces JDBC spans beneath repository spans. Active connections
+may still read near zero at the 15-second scrape interval when queries finish
+quickly. Ensure both dealerships contain inventory before running; empty
+dealerships substitute reads for action requests. No data is seeded or cleared
+by the test. Action history persists after the run.
 
 ## References
 

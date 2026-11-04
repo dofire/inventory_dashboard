@@ -18,23 +18,4 @@ public record VehicleView(
     long rowVersion,
     VehicleActionType action,
     VehicleActionStatus actionStatus
-) {
-    public VehicleView withAction(
-        VehicleActionType action,
-        VehicleActionStatus actionStatus
-    ) {
-        return new VehicleView(
-            id,
-            dealershipId,
-            make,
-            model,
-            status,
-            price,
-            currency,
-            stockedAt,
-            rowVersion + 1,
-            action,
-            actionStatus
-        );
-    }
-}
+) {}

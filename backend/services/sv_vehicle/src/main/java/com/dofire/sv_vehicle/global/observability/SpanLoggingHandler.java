@@ -17,11 +17,11 @@ public class SpanLoggingHandler implements ObservationHandler<Observation.Contex
     private static final Logger log = LoggerFactory.getLogger(SpanLoggingHandler.class);
     private static final java.util.Map<String, String> TASKS = java.util.Map.ofEntries(
             java.util.Map.entry("GetVehiclesService.findVehicles", "vehicle inventory search"),
-            java.util.Map.entry("GetVehiclesRepository.findByDealership", "loading dealership vehicles from the mock store"),
+            java.util.Map.entry("GetVehiclesRepository.findVehicles", "loading dealership vehicles from PostgreSQL"),
             java.util.Map.entry("GetVehicleFiltersService.filters", "building make and model filter options"),
-            java.util.Map.entry("GetVehicleFiltersRepository.findByDealership", "loading dealership vehicles for filter options"),
+            java.util.Map.entry("GetVehicleFiltersRepository.findByDealership", "loading dealership make and model options from PostgreSQL"),
             java.util.Map.entry("SetVehicleActionService.updateStatus", "saving the vehicle action proposal"),
-            java.util.Map.entry("SetVehicleActionRepository.logAction", "recording the proposal in the mock store"),
+            java.util.Map.entry("SetVehicleActionRepository.logAction", "recording the proposal in PostgreSQL"),
             java.util.Map.entry("vehicles.filter-and-sort", "filtering and sorting inventory results"),
             java.util.Map.entry("soak.simulated-delay", "simulating a brief delay for the soak test"),
             java.util.Map.entry("request.validation", "checking the request values"),

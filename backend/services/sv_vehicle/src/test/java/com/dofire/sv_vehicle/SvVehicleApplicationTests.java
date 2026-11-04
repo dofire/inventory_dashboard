@@ -10,6 +10,9 @@ import org.springframework.boot.test.context.SpringBootTest;
         "logging.file.name=build/test-logs/sv_vehicle.json"
 })
 class SvVehicleApplicationTests {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate jdbc;
+
 
 	@Test
 	void contextLoads() {

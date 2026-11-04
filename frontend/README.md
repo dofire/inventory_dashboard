@@ -48,9 +48,10 @@ mutations, with a manual refresh button available.
 
 - Only the three existing vehicle endpoints are used. Responses are validated
   at runtime with Zod. Request IDs are generated for every HTTP call.
-- `/vehicles` returns an array without totals. Global inventory count, aging
-  count and percentage are intentionally omitted. Pagination probes the next
-  page to avoid inventing a total or enabling Next for a nonexistent page.
+- `/vehicles` returns its array in `data` and page metadata in the sibling
+  `pagination` object (`page`, `size`, `totalItems`, `totalPages`). The footer shows
+  the range and total matching the dealership and active filters. Next-page
+  availability uses these totals without an extra probe request.
 - The response has no aging flag. A separate `aging=true` query identifies aging
   membership for visible IDs, using the server's strict >90-day rule. Aging
   results are paged until their descending stocked dates pass the oldest visible
@@ -73,7 +74,7 @@ mutations, with a manual refresh button available.
 - A 409 blocks further submission and offers refresh. Reopen the refreshed
   vehicle to review its latest action; requests are never retried with an updated
   version automatically. Business mutations have no automatic retries.
-- Inventory/action persistence currently resets when the mock backend restarts.
+- Inventory and action history are persisted in PostgreSQL and survive backend restarts.
 
 Live integration and visual browser checks are not performed when following the
 repository's instruction to avoid starting servers. Start both applications to

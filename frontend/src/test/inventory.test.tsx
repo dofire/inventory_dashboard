@@ -9,7 +9,14 @@ import { useInventoryUi } from '../features/inventory/store/ui-store'
 import type { UpdateAction, Vehicle } from '../features/inventory/types'
 import { formatPrice } from '../features/inventory/utils/format'
 
-const json = (data: unknown) => HttpResponse.json({ requestId: crypto.randomUUID(), traceId: 'a'.repeat(32), data })
+const json = (data: unknown, totalItems?: number, page = 0, size = 10) => HttpResponse.json({
+  requestId: crypto.randomUUID(), traceId: 'a'.repeat(32),
+  data,
+  ...(Array.isArray(data) ? { pagination: {
+    totalItems: totalItems ?? data.length, page, size,
+    totalPages: Math.ceil((totalItems ?? data.length) / size),
+  } } : {}),
+})
 
 const managerId = '00000000-0000-0000-0000-000000000100'
 const fixture: Vehicle = {
@@ -86,7 +93,7 @@ async function openProposal() {
 }
 
 describe('inventory dashboard', () => {
-  it('renders vehicle data, prices and backend aging membership without inventing totals', async () => {
+  it('renders vehicle data, prices and backend aging membership and the total matching vehicles', async () => {
     renderDashboard()
     expect(await screen.findByRole('button', { name: 'Toyota Corolla' })).toBeVisible()
     const table = screen.getByRole('table')
@@ -277,14 +284,18 @@ describe('inventory dashboard', () => {
         const page = Number(new URL(request.url).searchParams.get('page'))
         return json(
           page === 0 ? firstPage : page === 1 ? [{ ...vehicle, model: 'Camry' }] : [],
+          11, page,
         )
       }),
     )
     renderDashboard()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Next page' })).toBeEnabled())
+    expect(document.querySelector('.table-footer')).toHaveTextContent('1–10 of 11 vehicles')
     await userEvent.click(screen.getByRole('button', { name: 'Next page' }))
     expect(await screen.findByRole('button', { name: 'Toyota Camry' })).toBeVisible()
     expect(window.location.search).toContain('page=1')
+    expect(document.querySelector('.table-footer')).toHaveTextContent('11–11 of 11 vehicles')
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled()
     await userEvent.selectOptions(screen.getByLabelText('Make'), 'Toyota')
     expect(window.location.search).not.toContain('page=1')
   })

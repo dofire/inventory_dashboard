@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { request } from '../../../lib/api'
+import { request, requestPaginated } from '../../../lib/api'
 import { vehicleSchema, type InventoryQuery, type UpdateAction, type Vehicle } from '../types'
 
 export function inventoryParams(filters: InventoryQuery): URLSearchParams {
@@ -15,7 +15,7 @@ export function inventoryParams(filters: InventoryQuery): URLSearchParams {
   return params
 }
 export const getVehicles = (filters: InventoryQuery, signal?: AbortSignal) =>
-  request(`/vehicles?${inventoryParams(filters)}`, z.array(vehicleSchema), { signal })
+  requestPaginated(`/vehicles?${inventoryParams(filters)}`, z.array(vehicleSchema), { signal })
 export const getFilters = (dealershipId: string, signal?: AbortSignal) =>
   request(`/vehicle-filters?${new URLSearchParams({ dealershipId })}`, z.object({ makes: z.record(z.string(), z.array(z.string())) }), {
     signal,
@@ -41,7 +41,8 @@ export async function getVisibleAgingIds(
   const ids: string[] = []
   let page = 0
   while (true) {
-    const rows = await getVehicles({ ...filters, aging: true, page, size: 100, sortKey: 'stockedAt', sortOrder: 'desc' }, signal)
+    const result = await getVehicles({ ...filters, aging: true, page, size: 100, sortKey: 'stockedAt', sortOrder: 'desc' }, signal)
+    const rows = result.items
     ids.push(...rows.filter((vehicle) => visibleIds.has(vehicle.id)).map((vehicle) => vehicle.id))
     if (
       rows.length < 100 ||

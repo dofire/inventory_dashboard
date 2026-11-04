@@ -59,10 +59,12 @@ over OTLP/gRPC. Tempo retains 24 hours locally by default (`TEMPO_RETENTION`),
 with persistent WAL/blocks, a 512 MiB memory limit and one CPU. Alloy has a
 384 MiB limit and a bounded 128 MiB trace processor. Metrics/log pipelines remain unchanged.
 
-PostgreSQL connectivity and its Actuator health check are enabled. Hibernate
-schema generation and Flyway are disabled; inventory and action history still
-use the existing mock repository. SQL reference files in docs/sql/table are not
-run automatically. Database connectivity does not imply business persistence.
+Inventory reads, filter options, and action history use the configured PostgreSQL
+datasource. Flyway creates missing tables/indexes; existing local schemas without
+history are adopted at baseline version 0. Existing rows are preserved. Hibernate
+validates table mappings. SQL reference files in docs/sql/table remain docs;
+versioned migrations live in the service's resources/db/migration directory.
+There is no automatic inventory seeding or mock fallback.
 
 The frontend should run separately on port 3000 when its source is added.
 
@@ -207,29 +209,31 @@ its waterfall and individual durations. Use TraceQL for precise searches:
 ```
 
 The first is an endpoint filter; combine it with duration as needed. Search for
-`business.logic`, `repository.mock`, or JDBC spans to inspect slow operations.
+`business.logic`, `repository.database`, or JDBC spans to inspect slow operations.
 The expected hierarchy for the current read API is:
 
 ```text
 GET /vehicles (automatic server span)
 ├── business.logic (operation=GetVehiclesService.findVehicles)
-│   └── repository.mock (operation=GetVehiclesRepository.findAll)
+│   └── vehicles.filter-and-sort
+│       └── repository.database (operation=GetVehiclesRepository.findVehicles)
+│           └── JDBC query spans
 └── response.mapping (actual HTTP converter serialization/output writes)
 ```
 
 `request.validation` appears when MVC invokes Bean Validation, including
 `@Valid` request payloads and constrained controller parameters. It does not
-pretend to measure validation on endpoints with no validation. A 204 action
-response has no response body and therefore no serialization span. Response
+pretend to measure validation on endpoints with no validation. Action responses
+return HTTP 200 with a JSON envelope and have a serialization span. Response
 mapping includes output writing, not only CPU serialization time. Services and
 repositories use one reusable aspect; no controller duplicates the server span.
 
 JDBC connection/query observations are automatic for Spring-managed datasources.
-Current vehicle APIs use the shared mock store and intentionally have **no fake
-SQL spans**. To verify real JDBC spans, request `/actuator/health` (its database
-health indicator uses PostgreSQL), then inspect its trace for JDBC operations.
-Business SQL will appear under service/repository spans once real persistence
-is implemented. No schema or persistence behavior was changed.
+Inventory, filter-option, and action APIs now execute SQL and produce real JDBC
+connection/query spans beneath service/repository observations. Query bind
+values remain excluded. Trigger an inventory read or action update and inspect
+its trace to see database execution time. Action updates increment the vehicle
+version and append history in one transaction; updates persist across restarts.
 
 4. In **Explore -> Loki**, run:
 
@@ -400,3 +404,24 @@ row shows CPU, JVM memory, application database pool connections, and unexpected
 error rates. Opt-in test latency appears as `soak.simulated-delay` child spans
 in Tempo and the existing API percentile charts. It requires the `soak` Spring
 profile, `SOAK_DELAYS_ENABLED=true`, and the test header; it is off by default.
+
+## PostgreSQL repository verification
+
+The existing local database is used directly. Start the backend normally to run
+Flyway migrations; no server needs to run for the repository integration tests.
+They use random test dealerships and roll back or clean up their fixture rows.
+The migration test adopts the local schema into Flyway history and preserves
+existing vehicle data.
+
+```sh
+set -a
+. ./.env
+set +a
+POSTGRES_INTEGRATION_TEST=true backend/services/sv_vehicle/gradlew \
+  -p backend/services/sv_vehicle test --tests '*PostgresRepositoryTests' --rerun-tasks --no-daemon
+```
+
+The opt-in suite checks dealership isolation, SQL filtering/sorting/pagination,
+persistent latest actions, stale versions, cross-dealership rejection, and
+transaction rollback on history insert failure. Normal unit tests skip these
+checks unless `POSTGRES_INTEGRATION_TEST=true`.

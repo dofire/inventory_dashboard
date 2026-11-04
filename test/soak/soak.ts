@@ -19,7 +19,7 @@ type Vehicle = {
   dealershipId: string;
   rowVersion: number;
 };
-type Envelope = { requestId: string; traceId: string; data: unknown };
+type Envelope = { requestId: string; traceId: string; data: unknown; pagination?: { totalItems: number; page: number; size: number; totalPages: number } };
 type Endpoint = 'vehicles' | 'filters' | 'login' | 'action';
 type Summary = {
   metrics: Record<string, {
@@ -73,8 +73,12 @@ function send(method: string, path: string, body: Record<string, unknown> | null
     ),
     'response belongs to chosen dealership': () => {
       if (response.status !== 200) return true;
-      if (endpoint === 'vehicles') return Array.isArray(envelope?.data)
-        && envelope.data.every((vehicle) => vehicle.dealershipId === dealerships[(__VU - 1) % 2]);
+      if (endpoint === 'vehicles') {
+        const rows = envelope?.data;
+        return Array.isArray(rows) && Number.isSafeInteger(envelope?.pagination?.totalItems)
+          && (envelope?.pagination?.totalItems ?? -1) >= rows.length
+          && rows.every((vehicle) => vehicle.dealershipId === dealerships[(__VU - 1) % 2]);
+      }
       if (endpoint === 'login') return (envelope?.data as { dealershipId?: string } | undefined)?.dealershipId === body?.dealershipId;
       return endpoint === 'filters' ? Boolean((envelope?.data as { makes?: unknown } | undefined)?.makes) : envelope?.data === null;
     },

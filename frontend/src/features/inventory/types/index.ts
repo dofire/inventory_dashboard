@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { PaginatedData } from '../../../lib/api'
 
 export const vehicleStatuses = ['DRAFT', 'AVAILABLE', 'RESERVED', 'SOLD', 'UNAVAILABLE'] as const
 export const actionTypes = ['PRICE_REDUCTION_PLANNED', 'MAINTENANCE_PLANNED'] as const
@@ -19,6 +20,7 @@ export const vehicleSchema = z.object({
   action: z.enum(actionTypes).nullable(),
   actionStatus: z.enum(actionStatuses).nullable(),
 })
+export type VehiclePage = PaginatedData<Vehicle>
 export type Vehicle = z.infer<typeof vehicleSchema>
 export const sortKeys = ['make', 'model', 'price', 'status', 'stockedAt', 'daysInStock', 'action'] as const
 export type SortKey = typeof sortKeys[number]

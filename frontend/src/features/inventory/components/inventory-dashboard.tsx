@@ -26,12 +26,12 @@ import { ActionDialog } from './action-dialog'
 export function InventoryDashboard({ profile, onLogout }: { profile: Profile; onLogout: () => void }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { filters, update } = useFilters()
-  const { inventory, options, aging, hasNext, next } = useInventory(filters, profile.dealershipId)
+  const { inventory, options, aging, hasNext } = useInventory(filters, profile.dealershipId)
   const client = useQueryClient()
   const selectedId = useInventoryUi((state) => state.selectedId)
   const selectVehicle = useInventoryUi((state) => state.selectVehicle)
   const [notice, setNotice] = useState('')
-  const selected = !inventory.isPlaceholderData && inventory.data?.find((vehicle) => vehicle.id === selectedId)
+  const selected = !inventory.isPlaceholderData && inventory.data?.items.find((vehicle) => vehicle.id === selectedId)
   const refresh = async () => {
     const result = await inventory.refetch()
     if (result.error) throw result.error
@@ -40,7 +40,7 @@ export function InventoryDashboard({ profile, onLogout }: { profile: Profile; on
     setNotice('Inventory refreshed. Reopen a vehicle to review its latest proposal.')
   }
   const activeFilters = Boolean(filters.make || filters.model || filters.age || filters.aging)
-  const isLoading = inventory.isFetching || options.isFetching || aging.isFetching || next.isFetching
+  const isLoading = inventory.isFetching || options.isFetching || aging.isFetching
   return (
     <div className="app-shell">
       {isLoading && <LoadingOverlay label="Loading inventory…" />}
@@ -104,7 +104,7 @@ export function InventoryDashboard({ profile, onLogout }: { profile: Profile; on
                   Try again
                 </Button>
               </div>
-            ) : !inventory.data.length ? (
+            ) : !inventory.data.items.length ? (
               <div className="state-panel">
                 <CarFront size={36} />
                 <h3>
@@ -137,7 +137,7 @@ export function InventoryDashboard({ profile, onLogout }: { profile: Profile; on
                     update({ sortKey: '', sortOrder: '' })
                   }
                 }}
-                vehicles={inventory.data}
+                vehicles={inventory.data.items}
                 agingIds={inventory.isPlaceholderData ? [] : aging.data || []}
                 agingPending={inventory.isFetching || aging.isPending}
                 onSelect={(id) => { if (!inventory.isPlaceholderData) selectVehicle(id) }}
@@ -154,7 +154,8 @@ export function InventoryDashboard({ profile, onLogout }: { profile: Profile; on
               <div>
                 {inventory.isSuccess ? (
                   <>
-                    <strong>{inventory.data.length}</strong> vehicles on this page
+                    <strong>{inventory.data.items.length ? inventory.data.pagination.page * inventory.data.pagination.size + 1 : 0}–{inventory.data.items.length ? inventory.data.pagination.page * inventory.data.pagination.size + inventory.data.items.length : 0}</strong>
+                    {' '}of <strong>{inventory.data.pagination.totalItems.toLocaleString()}</strong> vehicles
                   </>
                 ) : (
                   'Vehicle inventory'
@@ -182,7 +183,7 @@ export function InventoryDashboard({ profile, onLogout }: { profile: Profile; on
                 >
                   <ArrowLeft size={15} />
                 </Button>
-                <span>Page {filters.page + 1}</span>
+                <span>Page {filters.page + 1}{inventory.isSuccess ? ` of ${Math.max(1, inventory.data.pagination.totalPages)}` : ''}</span>
                 <Button
                   variant="outline"
                   size="icon"
@@ -194,12 +195,6 @@ export function InventoryDashboard({ profile, onLogout }: { profile: Profile; on
                 </Button>
               </div>
             </footer>
-            {next.isError && (
-              <div className="inline-warning" role="alert">
-                Unable to check the next page.
-                <button onClick={() => void next.refetch()}>Retry next page</button>
-              </div>
-            )}
           </section>
         </main>
       </div>

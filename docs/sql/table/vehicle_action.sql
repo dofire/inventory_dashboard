@@ -22,3 +22,6 @@ CREATE TABLE public.vehicle_action (
 
 CREATE INDEX idx_vehicle_action_vehicle
     ON public.vehicle_action (vehicle_id);
+
+CREATE INDEX idx_vehicle_action_latest
+    ON public.vehicle_action (vehicle_id, version DESC, created_at DESC, id DESC);

@@ -12,7 +12,7 @@ Feature requirements:
 Backend (9001) and frontend (3000) run on the host. Infrastructure-only Compose
 provides persistent PostgreSQL (5432), Prometheus (9090), Grafana (3001), Loki
 (3100), and internal Alloy. The vehicle service connects to PostgreSQL while
-retaining its mock business repository. It exposes health/Prometheus endpoints
+using PostgreSQL-backed business repositories. It exposes health/Prometheus endpoints
 and writes correlated JSON logs to console and disk. Alloy ships file logs to
 Loki; trace IDs remain queryable JSON fields, never indexed labels. Grafana
 provisions data sources and an HTTP metrics dashboard. Tempo stores traces for
@@ -93,5 +93,7 @@ failures. Dedicated `soak` profile + explicit delay enable flag + test request
 header allow occasional bounded 100–500 ms latency spans, disabled by default.
 The existing dashboard includes application/host CPU, JVM memory, error rate,
 and application database pool connections below the per-API latency rows.
-Mock repositories remain in use; this is not a database query soak test.
+Inventory and action calls execute real PostgreSQL queries, so the soak workload
+exercises the database pool and produces JDBC child spans. Updates persist after
+the test; there is no automatic data reset.
 See [run and monitoring instructions](../test/soak/README.md).

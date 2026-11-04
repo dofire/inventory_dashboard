@@ -1,10 +1,7 @@
 package com.dofire.sv_vehicle.api.get_vehicle_filters;
 
-import com.dofire.sv_vehicle.api.get_vehicles.VehicleView;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -20,7 +17,7 @@ public class GetVehicleFiltersService {
     }
 
     public Map<String, List<String>> filters(String dealershipId) {
-        var options = buildFilterOptions(repository.findByDealership(dealershipId));
+        var options = repository.findByDealership(dealershipId);
 
         log.info(
             "<> Make and model filters are ready: {} makes and {} model options.",
@@ -31,21 +28,4 @@ public class GetVehicleFiltersService {
         return options;
     }
 
-    private Map<String, List<String>> buildFilterOptions(List<VehicleView> vehicles) {
-        return vehicles.stream().collect(Collectors.groupingBy(
-            VehicleView::make,
-            TreeMap::new,
-            Collectors.collectingAndThen(
-                Collectors.mapping(
-                    VehicleView::model,
-                    Collectors.toList()
-                ),
-                this::sortedUniqueModels
-            )
-        ));
-    }
-
-    private List<String> sortedUniqueModels(List<String> models) {
-        return models.stream().distinct().sorted().toList();
-    }
 }

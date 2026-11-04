@@ -15,7 +15,12 @@ operate on vehicles owned by that dealership; filter options are scoped too.
 An action against another dealership's vehicle returns 404 without mutation.
 
 
-- `GET /vehicles`: returns a vehicle array under `data`. `page` is zero-based (default 0),
+- `GET /vehicles`: returns a vehicle array under `data`, with a sibling
+  `pagination` object containing zero-based `page`, page `size`, `totalItems`,
+  and `totalPages` (zero for no matches). A separate SQL COUNT query uses the same
+  dealership and filters as the page query, before pagination. Both queries share
+  one repeatable-read transaction and one age cutoff timestamp. Totals remain
+  accurate for empty or out-of-range pages. `page` is zero-based (default 0),
   `size` is 1–100 (default 20). Optional `make` and `model` accept repeated or
   comma-separated values, matched case-insensitively. `age` is a nonnegative
   minimum number of days in inventory. `aging=true` restricts results to stock
@@ -58,22 +63,28 @@ price, currency, stocking timestamp, optimistic version). Inventory statuses are
 units. Currency is a required uppercase three-letter ISO 4217 code, stored as
 `VARCHAR(3)` and returned as `currency` alongside `price` in API responses.
 For example, `{"price":2200000,"currency":"USD"}` means USD 22,000.00.
-Mock vehicles use USD and preserve their original monetary values in cents.
 `VehicleActionEntity` maps the vehicle UUID, action, action status, optimistic
 version, and creation/update timestamps and user UUIDs. Both use the `public`
 schema. Dealership IDs map to required `dealership_id VARCHAR(50)`. Vehicle indexes are
 `(stocked_at DESC, id DESC)` and `(dealership_id, stocked_at DESC, id DESC)`;
 the dealership index replaces the previous make index.
 
-The repository currently seeds six HCM vehicles with stable UUIDs ending in 1–6
-and three Hanoi vehicles ending in 7–9
-and stores updates/history in memory. It atomically checks the vehicle version
-and records actions; data resets on restart. The frontend supplies user and dealership IDs from the mock login profile;
-there is no production manager authentication or dealership authorization. PostgreSQL connectivity is enabled for local infrastructure and health checks;
-business reads and writes still use the mock repository. Hibernate schema
-generation and Flyway migrations remain disabled. Database-backed endpoint repositories can replace
-the shared `MockVehicleStore` later; it must preserve atomic optimistic concurrency and
-transactional action history. No database migrations are included yet.
+Business repositories use Spring JDBC with the configured PostgreSQL datasource.
+Inventory queries apply dealership, make/model, minimum age, aging, sorting, and
+pagination in SQL. Filter options use dealership-scoped distinct make/model
+queries. Latest actions come from persisted action history, ordered by vehicle
+revision, creation timestamp, then UUID. A version-conditional vehicle UPDATE
+and action-history INSERT share one transaction. Failed inserts roll back the
+version increment; concurrent stale writes return 409. Vehicle history survives
+backend restarts. No mock inventory fallback or automatic data seeding exists.
+The frontend supplies user and dealership IDs from the mock login profile;
+there is no production manager authentication or dealership authorization.
+
+Flyway is enabled. `V1__vehicle_persistence.sql` creates missing tables and indexes
+without replacing existing rows. For an existing local schema without Flyway
+history, baseline version 0 allows V1 to adopt it. Hibernate validates the schema
+rather than generating it. These settings support the existing local database;
+future schema changes require new versioned migrations.
 
 
 ## SQL table definitions
@@ -83,8 +94,8 @@ PostgreSQL reference DDL is documented in
 [vehicle_action.sql](../../sql/table/vehicle_action.sql).
 Create `vehicle` before `vehicle_action` because actions reference a vehicle.
 UUIDs and audit values are application supplied; user UUIDs have no foreign key
-until a manager table is defined. These files are documentation, not automatic
-migrations, and do not change the mocked repository.
+until a manager table is defined. These files remain reference DDL; application
+schema changes run from `src/main/resources/db/migration`.
 
 
 ## Local service port
@@ -118,8 +129,9 @@ without replacing the focused input. Empty means any age; invalid values show
 inline guidance and do not trigger requests. Age changes also reset pagination. Model selection
 is disabled until a make is selected; changing or clearing the make clears the
 selected model. Model URL parameters without a make are ignored. Switching
-inventory filters refreshes results even when that combination was recently cached. Global counts and percentages
-are omitted because the API exposes no totals. Aging badges use membership in
+inventory filters refreshes results even when that combination was recently cached. The table footer shows the visible range and total matching vehicles, plus
+current/total pages. Next-page availability comes from response pagination; no
+extra next-page request is needed. Aging badges use membership in
 backend aging-filter results; displayed days use local date formatting.
 
 Managers can inspect the latest proposed action, create proposals, and record
@@ -145,7 +157,7 @@ with stable table column widths. A circular progress indicator centered in the
 viewport appears over a dimmed overlay during inventory, filter, aging, and
 pagination requests. Saving a proposal or refreshing from the vehicle dialog
 shows the same indicator centered over the dialog. Previous rows cannot open a proposal while replacement results load;
-aging and next-page queries wait for the current results.
+aging queries wait for the current results.
 
 ## Backend endpoint packages
 
@@ -153,9 +165,8 @@ Each vehicle endpoint has its own package under `api`: `get_vehicles`,
 `get_vehicle_filters`, and `set_vehicle_action`. Each contains one controller
 with one endpoint, its service, and its repository. Request and response payloads live in their owning API package:
 `UpdateStatusRequest` in `set_vehicle_action` and `VehicleView` in `get_vehicles`.
-Shared enums live under `global/model`. The shared in-memory data store is
-`global/mock/MockVehicleStore`; repositories belong only to their API packages.
-The shared store keeps updates visible across APIs.
+Shared enums live under `global/model`. Repositories remain in their API
+packages and use the same PostgreSQL datasource. `MockVehicleStore` is removed.
 Auth and observability also remain under `global`. Existing HTTP paths are unchanged.
 
 ## Shared payload contract
@@ -166,3 +177,14 @@ Nested data models such as vehicles and profiles are domain DTOs rather than
 response envelopes. Successful actions return HTTP 200 with `data: null`.
 Application controller errors use the same envelope with a generic message in
 `data` and their original HTTP status. Actuator keeps its standard response format.
+
+Example paginated response shape:
+
+```json
+{
+  "requestId": "...",
+  "traceId": "...",
+  "data": [],
+  "pagination": { "page": 0, "size": 20, "totalItems": 0, "totalPages": 0 }
+}
+```

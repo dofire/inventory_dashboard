@@ -65,9 +65,19 @@ class TracingWebConfigurationTests {
             public boolean supportsContext(Observation.Context context) { return true; }
             public void onStop(Observation.Context context) { completed.add(context); }
         });
-        var store = new com.dofire.sv_vehicle.global.mock.MockVehicleStore();
+        var jdbc = org.mockito.Mockito.mock(org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate.class);
+        org.mockito.Mockito.when(jdbc.query(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class),
+                org.mockito.ArgumentMatchers.<org.springframework.jdbc.core.RowMapper<com.dofire.sv_vehicle.api.get_vehicles.VehicleView>>any()
+        )).thenReturn(java.util.List.of());
+        org.mockito.Mockito.when(jdbc.queryForObject(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class),
+                org.mockito.ArgumentMatchers.eq(Long.class)
+        )).thenReturn(0L);
         var repositoryFactory = new org.springframework.aop.aspectj.annotation.AspectJProxyFactory(
-                new com.dofire.sv_vehicle.api.get_vehicles.GetVehiclesRepository(store));
+                new com.dofire.sv_vehicle.api.get_vehicles.GetVehiclesRepository(jdbc));
         repositoryFactory.addAspect(new OperationTracing(registry));
         com.dofire.sv_vehicle.api.get_vehicles.GetVehiclesRepository repository = repositoryFactory.getProxy();
         var serviceFactory = new org.springframework.aop.aspectj.annotation.AspectJProxyFactory(
@@ -76,15 +86,16 @@ class TracingWebConfigurationTests {
         com.dofire.sv_vehicle.api.get_vehicles.GetVehiclesService service = serviceFactory.getProxy();
         Observation request = Observation.start("http.server.requests", registry);
         try (Observation.Scope scope = request.openScope()) {
-            assertEquals(6, service.findVehicles("DEALER_HCM_001", 0, 10, null, null, null, null, "stockedAt", "desc").size());
+            assertEquals(0, service.findVehicles("DEALER_HCM_001", 0, 10, null, null, null, null, "stockedAt", "desc").items().size());
             assertSame(request, registry.getCurrentObservation());
         } finally {
             request.stop();
         }
         var business = completed.stream().filter(c -> c.getName().equals("business.logic")).findFirst().orElseThrow();
-        var storage = completed.stream().filter(c -> c.getName().equals("repository.mock")).findFirst().orElseThrow();
+        var storage = completed.stream().filter(c -> c.getName().equals("repository.database")).findFirst().orElseThrow();
         assertSame(request, business.getParentObservation());
-        assertSame(business, storage.getParentObservation().getContextView());
+        assertEquals("vehicles.filter-and-sort", storage.getParentObservation().getContextView().getName());
+        assertSame(business, storage.getParentObservation().getContextView().getParentObservation().getContextView());
     }
 
     @Test

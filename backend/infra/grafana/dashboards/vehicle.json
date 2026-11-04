@@ -2,7 +2,7 @@
   "uid": "sv-vehicle",
   "title": "Vehicle API performance",
   "schemaVersion": 39,
-  "version": 7,
+  "version": 8,
   "refresh": "15s",
   "time": {
     "from": "now-30m",
@@ -1366,7 +1366,7 @@
           ]
         }
       },
-      "description": "Application and host metrics from the existing Spring Boot Prometheus scrape. No data means unavailable, not zero. Business operations use the mock store, so this test does not load PostgreSQL queries; pool values may stay idle. These are application pool connections, not all PostgreSQL server sessions."
+      "description": "Application PostgreSQL pool connections from Spring Boot. Inventory/filter queries and action transactions use this pool. Active connections may be brief between scrapes. This is not the total number of PostgreSQL sessions."
     }
   ]
 }

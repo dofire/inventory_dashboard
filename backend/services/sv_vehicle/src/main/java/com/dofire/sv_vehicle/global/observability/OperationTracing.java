@@ -27,7 +27,7 @@ public class OperationTracing {
 
     @Around("execution(public * com.dofire.sv_vehicle.api..*Repository.*(..))")
     public Object repository(ProceedingJoinPoint call) throws Throwable {
-        return observe("repository.mock", call);
+        return observe("repository.database", call);
     }
 
     private Object observe(String name, ProceedingJoinPoint call) throws Throwable {

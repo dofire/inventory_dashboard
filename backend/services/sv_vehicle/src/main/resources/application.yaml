@@ -14,9 +14,11 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
   flyway:
-    enabled: false
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
 
 management:
   observations:

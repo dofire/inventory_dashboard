@@ -1,19 +1,31 @@
 package com.dofire.sv_vehicle.api.get_vehicle_filters;
 
-import com.dofire.sv_vehicle.api.get_vehicles.VehicleView;
-import com.dofire.sv_vehicle.global.mock.MockVehicleStore;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class GetVehicleFiltersRepository {
-    private final MockVehicleStore store;
+    private final NamedParameterJdbcTemplate jdbc;
 
-    public GetVehicleFiltersRepository(MockVehicleStore store) {
-        this.store = store;
+    public GetVehicleFiltersRepository(NamedParameterJdbcTemplate jdbc) {
+        this.jdbc = jdbc;
     }
 
-    public List<VehicleView> findByDealership(String dealershipId) {
-        return store.findByDealership(dealershipId);
+    public Map<String, List<String>> findByDealership(String dealershipId) {
+        var options = new TreeMap<String, List<String>>();
+        jdbc.query(
+            """
+            SELECT DISTINCT make, model FROM public.vehicle
+            WHERE dealership_id = :dealershipId ORDER BY make, model
+            """,
+            Map.of("dealershipId", dealershipId),
+            (org.springframework.jdbc.core.RowCallbackHandler) row -> options
+                    .computeIfAbsent(row.getString("make"), key -> new java.util.ArrayList<>())
+                    .add(row.getString("model"))
+        );
+        return options;
     }
 }

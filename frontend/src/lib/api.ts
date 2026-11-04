@@ -17,12 +17,39 @@ export class ApiError extends Error {
     )
   }
 }
-const baseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
+export const paginationSchema = z.object({
+  page: z.number().int().nonnegative(),
+  size: z.number().int().positive(),
+  totalItems: z.number().int().safe().nonnegative(),
+  totalPages: z.number().int().safe().nonnegative(),
+})
+export type Pagination = z.infer<typeof paginationSchema>
+export type PaginatedData<T> = { items: T[]; pagination: Pagination }
+
 export async function request<T>(
   path: string,
   schema: z.ZodType<T>,
   init: RequestInit = {},
 ): Promise<T> {
+  return (await requestEnvelope(path, schema, init)).data
+}
+
+export async function requestPaginated<T>(
+  path: string,
+  schema: z.ZodType<T[]>,
+  init: RequestInit = {},
+): Promise<PaginatedData<T>> {
+  const response = await requestEnvelope(path, schema, init)
+  if (!response.pagination) throw new Error('The service returned missing pagination information.')
+  return { items: response.data, pagination: response.pagination }
+}
+
+const baseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
+async function requestEnvelope<T>(
+  path: string,
+  schema: z.ZodType<T>,
+  init: RequestInit = {},
+) {
   const headers = new Headers(init.headers)
   headers.set('Accept', 'application/json')
   headers.set('X-Request-ID', crypto.randomUUID())
@@ -41,8 +68,9 @@ export async function request<T>(
     requestId: z.string(),
     traceId: z.string(),
     data: schema,
+    pagination: paginationSchema.optional(),
   }).safeParse(await response.json())
   if (!envelope.success)
     throw new Error('The service returned unexpected data. Please contact your administrator.')
-  return envelope.data.data
+  return envelope.data
 }
