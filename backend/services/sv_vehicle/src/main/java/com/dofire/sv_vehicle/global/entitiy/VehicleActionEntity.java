@@ -1,7 +1,7 @@
 package com.dofire.sv_vehicle.global.entitiy;
 
-import com.dofire.sv_vehicle.vehicle.VehicleActionStatus;
-import com.dofire.sv_vehicle.vehicle.VehicleActionType;
+import com.dofire.sv_vehicle.global.model.VehicleActionStatus;
+import com.dofire.sv_vehicle.global.model.VehicleActionType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

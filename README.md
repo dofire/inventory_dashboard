@@ -1,7 +1,8 @@
-# Keyloop inventory assessment
+# Inventory assessment
 
 Vehicle service: Java 21 / Spring Boot 4.1.2, port 9001. The React frontend is
-intended to run on the host at port 3000; no frontend source is present yet.
+in `frontend/` runs on the host at port 3000. See the
+[frontend guide](frontend/README.md) for setup, checks, and API limitations.
 Docker Compose runs PostgreSQL and observability infrastructure only.
 
 See [local infrastructure setup](backend/infra/README.md) for startup,

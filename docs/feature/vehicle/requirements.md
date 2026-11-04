@@ -55,8 +55,8 @@ and stores updates/history in memory. It atomically checks the vehicle version
 and records actions; data resets on restart. User IDs are caller supplied for
 now, with no manager lookup or authentication. PostgreSQL connectivity is enabled for local infrastructure and health checks;
 business reads and writes still use the mock repository. Hibernate schema
-generation and Flyway migrations remain disabled. A database-backed `VehicleRepository` can replace
-this implementation later; it must preserve atomic optimistic concurrency and
+generation and Flyway migrations remain disabled. Database-backed endpoint repositories can replace
+the shared `MockVehicleStore` later; it must preserve atomic optimistic concurrency and
 transactional action history. No database migrations are included yet.
 
 
@@ -87,3 +87,51 @@ logs. This is correlation metadata, not a JSON body field, trace ID, or
 idempotency key. Actuator endpoints are excluded from this request logger.
 The HTTP examples generate a fresh UUID for each request using IntelliJ's
 `{{$uuid}}`; VS Code REST Client users should replace it with `{{$guid}}`.
+
+## Inventory frontend
+
+The React dashboard in `frontend/` runs on port 3000, with `/api` proxied to the
+vehicle service on port 9001 during development. Filters and pagination are
+server-side and synchronized to URL parameters. Make, model, and aging changes apply immediately and reset pagination.
+Minimum stock age applies after a 600 ms typing pause, on blur, or on Enter,
+without replacing the focused input. Empty means any age; invalid values show
+inline guidance and do not trigger requests. Age changes also reset pagination. Model selection
+is disabled until a make is selected; changing or clearing the make clears the
+selected model. Model URL parameters without a make are ignored. Switching
+inventory filters refreshes results even when that combination was recently cached. Global counts and percentages
+are omitted because the API exposes no totals. Aging badges use membership in
+backend aging-filter results; displayed days use local date formatting.
+
+Managers can inspect the latest proposed action, create proposals, and record
+status changes using the existing endpoint. Action history/timestamps and vehicle
+status filtering are not exposed by the API and are not fabricated. The signed-in mock profile supplies the user UUID for attribution automatically;
+managers see their name and email rather than entering a UUID. Clicking a vehicle
+row or its keyboard-accessible vehicle/Manage button opens the detail dialog. Version conflicts require refresh
+and review before another submission. See the
+[frontend guide](../../../frontend/README.md) for configuration and limitations.
+
+### Appearance
+
+The dashboard uses a single inventory view with filters, table, and action dialog.
+Decorative navigation, workspace labels, promotional banners, and repeated
+explanations are omitted. Light/dark mode follows the system preference initially;
+an explicit toggle persists the chosen mode locally. Theme colors cover controls,
+tables, badges, notifications, and dialogs.
+
+### Filter loading behavior
+
+Filter and page transitions retain the previous vehicle rows while fetching,
+with a reserved loading indicator above the filters and stable table column
+widths. Previous rows cannot open a proposal while replacement results load;
+aging and next-page queries wait for the current results.
+
+## Backend endpoint packages
+
+Each vehicle endpoint has its own package under `api`: `get_vehicles`,
+`get_vehicle_filters`, and `set_vehicle_action`. Each contains one controller
+with one endpoint, its service, and its repository. Request and response payloads live in their owning API package:
+`UpdateStatusRequest` in `set_vehicle_action` and `VehicleView` in `get_vehicles`.
+Shared enums live under `global/model`. The shared in-memory data store is
+`global/mock/MockVehicleStore`; repositories belong only to their API packages.
+The shared store keeps updates visible across APIs.
+Auth and observability also remain under `global`. Existing HTTP paths are unchanged.

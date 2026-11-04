@@ -1,20 +1,16 @@
-package com.dofire.sv_vehicle.vehicle;
-
-import org.springframework.stereotype.Service;
+package com.dofire.sv_vehicle.api.get_vehicles;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
+import org.springframework.stereotype.Service;
 
 @Service
-public class VehicleService {
-    private final VehicleRepository repository;
+public class GetVehiclesService {
+    private final GetVehiclesRepository repository;
 
-    public VehicleService(VehicleRepository repository) {
+    public GetVehiclesService(GetVehiclesRepository repository) {
         this.repository = repository;
     }
 
@@ -38,17 +34,4 @@ public class VehicleService {
         return values == null || values.isEmpty() || values.stream().anyMatch(value::equalsIgnoreCase);
     }
 
-    public Map<String, List<String>> filters() {
-        return repository.findAll().stream().collect(Collectors.groupingBy(
-                VehicleView::make, TreeMap::new,
-                Collectors.collectingAndThen(Collectors.mapping(VehicleView::model, Collectors.toList()),
-                        models -> models.stream().distinct().sorted().toList())));
-    }
-
-    public void updateStatus(UpdateStatusRequest request) {
-        VehicleActionStatus actionStatus = request.actionStatus() == null
-                ? VehicleActionStatus.CREATED : request.actionStatus();
-        repository.logAction(request.vehicleId(), request.rowVersion(), request.status(),
-                actionStatus, request.userId(), Instant.now());
-    }
 }

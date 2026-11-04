@@ -1,8 +1,13 @@
-package com.dofire.sv_vehicle.vehicle;
+package com.dofire.sv_vehicle.global.mock;
+
+import com.dofire.sv_vehicle.api.get_vehicles.VehicleView;
+import com.dofire.sv_vehicle.global.model.VehicleActionStatus;
+import com.dofire.sv_vehicle.global.model.VehicleActionType;
+import com.dofire.sv_vehicle.global.model.VehicleStatus;
 
 import com.dofire.sv_vehicle.global.entitiy.VehicleActionEntity;
 import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
@@ -13,12 +18,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@Repository
-public class MockVehicleRepository implements VehicleRepository {
+@Component
+public class MockVehicleStore {
     private final Map<UUID, VehicleView> vehicles = new LinkedHashMap<>();
     private final List<VehicleActionEntity> actionHistory = new ArrayList<>();
 
-    public MockVehicleRepository() {
+    public MockVehicleStore() {
         Instant now = Instant.now();
         seed(1, "Toyota", "Corolla", 2200000L, 120, now);
         seed(2, "Toyota", "Camry", 3100000L, 45, now);
@@ -34,12 +39,10 @@ public class MockVehicleRepository implements VehicleRepository {
                 price, "USD", now.minus(days, ChronoUnit.DAYS), 0, null, null));
     }
 
-    @Override
     public synchronized List<VehicleView> findAll() {
         return List.copyOf(vehicles.values());
     }
 
-    @Override
     public synchronized void logAction(UUID vehicleId, long rowVersion, VehicleActionType action,
                                        VehicleActionStatus actionStatus, UUID userId, Instant now) {
         VehicleView vehicle = vehicles.get(vehicleId);

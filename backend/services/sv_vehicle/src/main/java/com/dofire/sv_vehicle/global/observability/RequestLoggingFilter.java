@@ -1,5 +1,6 @@
-package com.dofire.sv_vehicle.observability;
+package com.dofire.sv_vehicle.global.observability;
 
+import io.micrometer.tracing.Tracer;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,16 +22,21 @@ import java.util.UUID;
 public class RequestLoggingFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(RequestLoggingFilter.class);
 
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        return request.getRequestURI().startsWith("/actuator/");
+    private final Tracer tracer;
+
+    public RequestLoggingFilter(Tracer tracer) {
+        this.tracer = tracer;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
         String requestId = resolveRequestId(request.getHeader("X-Request-ID"));
+        String traceId = tracer.currentSpan() != null
+                ? tracer.currentSpan().context().traceId()
+                : UUID.randomUUID().toString().replace("-", "");
         response.setHeader("X-Request-ID", requestId);
+        response.setHeader("X-Trace-ID", traceId);
         String previousRequestId = MDC.get("requestId");
         MDC.put("requestId", requestId);
         try {

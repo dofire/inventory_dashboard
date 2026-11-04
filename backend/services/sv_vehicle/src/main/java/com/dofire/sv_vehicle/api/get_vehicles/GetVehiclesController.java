@@ -1,19 +1,17 @@
-package com.dofire.sv_vehicle.vehicle;
+package com.dofire.sv_vehicle.api.get_vehicles;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
-import java.util.Map;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class VehicleController {
-    private final VehicleService service;
+public class GetVehiclesController {
+    private final GetVehiclesService service;
 
-    public VehicleController(VehicleService service) {
+    public GetVehiclesController(GetVehiclesService service) {
         this.service = service;
     }
 
@@ -27,16 +25,4 @@ public class VehicleController {
             @RequestParam(required = false) Boolean aging) {
         return service.findVehicles(page, size, make, model, age, aging);
     }
-
-    @PostMapping("/update-vehicle-status")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void updateStatus(@Valid @RequestBody UpdateStatusRequest request) {
-        service.updateStatus(request);
-    }
-
-    @GetMapping("/vehicle-filters")
-    public Map<String, Map<String, List<String>>> filters() {
-        return Map.of("makes", service.filters());
-    }
-
 }
