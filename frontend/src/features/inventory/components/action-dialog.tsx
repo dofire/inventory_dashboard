@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CircleAlert, LoaderCircle, RefreshCw } from 'lucide-react'
 import {
@@ -10,6 +10,7 @@ import {
 } from '../../../components/ui/dialog'
 import { Button } from '../../../components/ui/button'
 import { LoadingOverlay } from '../../../components/ui/loading-overlay'
+import { Select } from '../../../components/ui/select'
 import { Badge } from '../../../components/ui/badge'
 import { ApiError } from '../../../lib/api'
 import { saveAction } from '../api/inventory'
@@ -100,15 +101,41 @@ export function ActionDialog({
           <div className="proposal-fields">
             <div className="proposal-field">
               <label htmlFor="action-type">Proposed action</label>
-              <select id="action-type" {...form.register('status')} disabled={mutation.isPending || conflict || refresh.isPending}>
-                {actionTypes.map((action) => <option key={action} value={action}>{labels[action]}</option>)}
-              </select>
+              <Controller
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <Select
+                    id="action-type"
+                    name={field.name}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                    disabled={mutation.isPending || conflict || refresh.isPending}
+                    options={actionTypes.map((value) => ({ value, label: labels[value] }))}
+                  />
+                )}
+              />
             </div>
             <div className="proposal-field">
               <label htmlFor="action-status">Action status</label>
-              <select id="action-status" {...form.register('actionStatus')} disabled={mutation.isPending || conflict || refresh.isPending}>
-                {actionStatuses.map((status) => <option key={status} value={status}>{labels[status]}</option>)}
-              </select>
+              <Controller
+                control={form.control}
+                name="actionStatus"
+                render={({ field }) => (
+                  <Select
+                    id="action-status"
+                    name={field.name}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                    disabled={mutation.isPending || conflict || refresh.isPending}
+                    options={actionStatuses.map((value) => ({ value, label: labels[value] }))}
+                  />
+                )}
+              />
             </div>
           </div>
           <p className="proposal-author">Recorded by <strong>{profile.name}</strong></p>

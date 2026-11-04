@@ -231,6 +231,20 @@ describe('inventory dashboard', () => {
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save proposal' }))
     await waitFor(() => expect(saved).toMatchObject({ dealershipId: hanoi.dealershipId, vehicleId: hanoi.id }))
   })
+  it('supports keyboard selection and closing the menu without closing vehicle details', async () => {
+    renderDashboard()
+    const dialog = await openProposal()
+    const action = within(dialog).getByRole('combobox', { name: 'Proposed action' })
+    action.focus()
+    await userEvent.keyboard('{Enter}{End}{Enter}')
+    expect(action).toHaveTextContent('Maintenance')
+    await userEvent.click(within(dialog).getByRole('combobox', { name: 'Action status' }))
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeVisible()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save proposal' }))
+    await waitFor(() => expect(saved).toMatchObject({ status: 'MAINTENANCE_PLANNED' }))
+  })
   it('updates the latest action status using the existing proposal endpoint', async () => {
     vehicle.action = 'MAINTENANCE_PLANNED'
     vehicle.actionStatus = 'CREATED'
@@ -238,7 +252,8 @@ describe('inventory dashboard', () => {
     useInventoryUi.setState({ managerId })
     renderDashboard()
     const dialog = await openProposal()
-    await userEvent.selectOptions(within(dialog).getByLabelText('Action status'), 'COMPLETED')
+    await userEvent.click(within(dialog).getByRole('combobox', { name: 'Action status' }))
+    await userEvent.click(screen.getByRole('option', { name: 'Completed' }))
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save proposal' }))
     await waitFor(() =>
       expect(saved).toMatchObject({
@@ -271,7 +286,7 @@ describe('inventory dashboard', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(await screen.findByText('In progress')).toBeVisible()
     await openProposal()
-    expect(screen.getByLabelText('Action status')).toHaveValue('IN_PROGRESS')
+    expect(screen.getByRole('combobox', { name: 'Action status' })).toHaveTextContent('In progress')
     expect(saved).toBeUndefined()
   })
   it('paginates server results and resets the page when filters change', async () => {

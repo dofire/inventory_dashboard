@@ -202,7 +202,7 @@ export function InventoryDashboard({ profile, onLogout }: { profile: Profile; on
         <DialogContent className="settings-dialog">
           <DialogTitle className="dialog-title">Settings</DialogTitle>
           <DialogDescription className="dialog-description">
-            Manage your account and preferences.
+            Manage your account.
           </DialogDescription>
           <section className="settings-profile" aria-label="Signed-in account">
             <div className="settings-avatar" aria-hidden="true">
@@ -214,10 +214,6 @@ export function InventoryDashboard({ profile, onLogout }: { profile: Profile; on
               <span className="settings-account">@{profile.account} · Mock account</span>
             </div>
           </section>
-          <div className="settings-preference">
-            <div><h3>Appearance</h3><p>Choose light or dark mode.</p></div>
-            <ThemeToggle />
-          </div>
           <details className="settings-details">
             <summary>Account details</summary>
             <dl>
