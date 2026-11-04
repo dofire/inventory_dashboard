@@ -11,3 +11,6 @@ environment configuration, verification, and troubleshooting, and
 
 For the 30-minute, 20 RPS API endurance workload, see the
 [TypeScript k6 soak test](test/soak/README.md).
+
+For Java unit tests and isolated PostgreSQL integration tests, see the
+[Java testing guide](backend/services/sv_vehicle/TESTING.md).

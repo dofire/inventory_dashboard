@@ -810,20 +810,28 @@ tbody tr:hover {
 
 .vehicle-row { cursor: pointer; }
 .vehicle-row:focus-within { background: var(--hover); }
-.vehicle-summary { margin: 20px 0 16px; padding: 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-muted); }
-.vehicle-summary h3 { font-size: 20px; margin-bottom: 8px; }
+.vehicle-dialog { max-width: 500px; }
+.vehicle-dialog-heading { padding-right: 20px; }
+.vehicle-dialog-price { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+.vehicle-dialog-price > strong { font-size: 18px; font-weight: 600; }
+.vehicle-stock-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px 0 16px; }
+.vehicle-stock-summary dt { color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+.vehicle-stock-summary dd { margin: 0; font-size: 14px; font-weight: 500; }
 .vehicle-reference { margin-bottom: 20px; }
-.vehicle-reference summary { font-size: 12px; color: var(--muted); cursor: pointer; }
-.vehicle-reference .vehicle-details { margin: 12px 0 0; }
-.vehicle-dialog .latest-action { padding: 16px 0 20px; border-top: 1px solid var(--border); }
-.vehicle-dialog .latest-action > div { flex-wrap: wrap; }
-.vehicle-dialog .action-form select { height: 44px; }
-.proposal-author { display: grid; gap: 4px; margin-top: 22px; padding: 14px 16px; border-radius: 8px; background: var(--surface-muted); font-size: 12px; }
-.proposal-author-label { color: var(--muted); font-size: 11px; margin-bottom: 3px; }
-.proposal-author strong { font-weight: 600; }
-.proposal-author > span:last-child { color: var(--muted); overflow-wrap: anywhere; }
-.vehicle-dialog .dialog-footer { border-top: 1px solid var(--border); padding-top: 20px; }
-@media (max-width: 560px) {
+.vehicle-reference summary { font-size: 12px; color: var(--muted); cursor: pointer; width: fit-content; }
+.vehicle-reference .vehicle-details { margin: 10px 0 0; }
+.proposal-heading { border-top: 1px solid var(--border); padding-top: 20px; }
+.proposal-heading h2 { font-size: 15px; font-weight: 600; }
+.proposal-current { font-size: 12px; color: var(--muted); margin-top: 5px; line-height: 1.6; }
+.proposal-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+.proposal-field { display: flex; flex-direction: column; min-width: 0; gap: 8px; }
+.vehicle-dialog .proposal-field label { margin: 0; }
+.vehicle-dialog .proposal-field select { width: 100%; min-width: 0; height: 44px; }
+.proposal-author { margin-top: 14px; font-size: 12px; color: var(--muted); }
+.proposal-author strong { color: var(--text); font-weight: 500; }
+.vehicle-dialog .dialog-footer { border-top: 1px solid var(--border); padding-top: 18px; margin-top: 20px; }
+@media (max-width: 420px) {
+  .proposal-fields { grid-template-columns: 1fr; }
   .vehicle-dialog .dialog-footer .button { flex: 1; }
 }
 

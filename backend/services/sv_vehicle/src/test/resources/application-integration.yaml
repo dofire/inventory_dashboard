@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    # ServiceConnection must override these; tests can never fall back to local data.
+    url: jdbc:postgresql://invalid.invalid:1/unused
+    username: unused
+    password: unused
+  flyway:
+    baseline-on-migrate: false
+management:
+  logging:
+    export:
+      otlp:
+        enabled: false
+  tracing:
+    export:
+      otlp:
+        enabled: false
+    sampling:
+      probability: 0.0
+app:
+  tracing:
+    span-logs-enabled: false
+logging:
+  file:
+    name: build/test-logs/integration.json

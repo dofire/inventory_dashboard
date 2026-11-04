@@ -115,8 +115,9 @@ cd backend/services/sv_vehicle
 ./gradlew test
 ```
 
-The existing context test explicitly excludes database auto-configuration;
-it does not verify database connectivity. Use the running health endpoint for that.
+The context smoke test excludes database auto-configuration. Disposable
+PostgreSQL integration tests are available separately via `integrationTest`; see
+the [Java testing guide](../services/sv_vehicle/TESTING.md).
 
 ## Network switching and final demonstration
 
@@ -405,23 +406,16 @@ error rates. Opt-in test latency appears as `soak.simulated-delay` child spans
 in Tempo and the existing API percentile charts. It requires the `soak` Spring
 profile, `SOAK_DELAYS_ENABLED=true`, and the test header; it is off by default.
 
-## PostgreSQL repository verification
+## PostgreSQL integration tests
 
-The existing local database is used directly. Start the backend normally to run
-Flyway migrations; no server needs to run for the repository integration tests.
-They use random test dealerships and roll back or clean up their fixture rows.
-The migration test adopts the local schema into Flyway history and preserves
-existing vehicle data.
+Integration tests use Testcontainers PostgreSQL and Spring Boot MockMvc, with
+production migrations and the real transaction manager. They do not connect to
+the Compose database or require `.env`. Start Docker and run:
 
 ```sh
-set -a
-. ./.env
-set +a
-POSTGRES_INTEGRATION_TEST=true backend/services/sv_vehicle/gradlew \
-  -p backend/services/sv_vehicle test --tests '*PostgresRepositoryTests' --rerun-tasks --no-daemon
+backend/services/sv_vehicle/gradlew -p backend/services/sv_vehicle integrationTest
 ```
 
-The opt-in suite checks dealership isolation, SQL filtering/sorting/pagination,
-persistent latest actions, stale versions, cross-dealership rejection, and
-transaction rollback on history insert failure. Normal unit tests skip these
-checks unless `POSTGRES_INTEGRATION_TEST=true`.
+The old `POSTGRES_INTEGRATION_TEST` opt-in against local data is removed.
+Unit tests run with `test`; `check` runs both suites. See the
+[Java testing guide](../services/sv_vehicle/TESTING.md) for coverage and reports.

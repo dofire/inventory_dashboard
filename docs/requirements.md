@@ -97,3 +97,13 @@ Inventory and action calls execute real PostgreSQL queries, so the soak workload
 exercises the database pool and produces JDBC child spans. Updates persist after
 the test; there is no automatic data reset.
 See [run and monitoring instructions](../test/soak/README.md).
+
+## Java test isolation
+
+JUnit/Mockito unit tests run without Docker through Gradle `test`. Spring Boot
+integration tests use MockMvc and a disposable PostgreSQL 17.6 Testcontainers
+instance through `integrationTest`, with real Flyway migrations, repositories,
+and transactions. They never use the developer's local database or `.env`.
+Gradle `check` runs both suites; unavailable Docker causes an explicit integration
+failure rather than silently skipping tests. External telemetry export is disabled
+for integration tests. See [the Java testing guide](../backend/services/sv_vehicle/TESTING.md).
