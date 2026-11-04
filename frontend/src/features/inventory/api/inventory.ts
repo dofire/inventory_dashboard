@@ -1,23 +1,27 @@
 import { z } from 'zod'
 import { request } from '../../../lib/api'
-import { vehicleSchema, type InventoryFilters, type UpdateAction, type Vehicle } from '../types'
+import { vehicleSchema, type InventoryQuery, type UpdateAction, type Vehicle } from '../types'
 
-export function inventoryParams(filters: InventoryFilters): URLSearchParams {
-  const params = new URLSearchParams({ page: String(filters.page), size: String(filters.size) })
+export function inventoryParams(filters: InventoryQuery): URLSearchParams {
+  const params = new URLSearchParams({ page: String(filters.page), size: String(filters.size), dealershipId: filters.dealershipId })
+  if (filters.sortKey && filters.sortOrder) {
+    params.set('sortKey', filters.sortKey)
+    params.set('sortOrder', filters.sortOrder)
+  }
   if (filters.make) params.set('make', filters.make)
   if (filters.model) params.set('model', filters.model)
   if (filters.age) params.set('age', filters.age)
   if (filters.aging) params.set('aging', 'true')
   return params
 }
-export const getVehicles = (filters: InventoryFilters, signal?: AbortSignal) =>
+export const getVehicles = (filters: InventoryQuery, signal?: AbortSignal) =>
   request(`/vehicles?${inventoryParams(filters)}`, z.array(vehicleSchema), { signal })
-export const getFilters = (signal?: AbortSignal) =>
-  request('/vehicle-filters', z.object({ makes: z.record(z.string(), z.array(z.string())) }), {
+export const getFilters = (dealershipId: string, signal?: AbortSignal) =>
+  request(`/vehicle-filters?${new URLSearchParams({ dealershipId })}`, z.object({ makes: z.record(z.string(), z.array(z.string())) }), {
     signal,
   })
 export const saveAction = (payload: UpdateAction) =>
-  request('/update-vehicle-status', z.undefined(), {
+  request('/update-vehicle-status', z.null(), {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -26,7 +30,7 @@ export const saveAction = (payload: UpdateAction) =>
  * Stop once descending stock dates pass the oldest visible vehicle, not the whole inventory.
  */
 export async function getVisibleAgingIds(
-  filters: InventoryFilters,
+  filters: InventoryQuery,
   visible: Vehicle[],
   signal?: AbortSignal,
 ): Promise<string[]> {
@@ -37,7 +41,7 @@ export async function getVisibleAgingIds(
   const ids: string[] = []
   let page = 0
   while (true) {
-    const rows = await getVehicles({ ...filters, aging: true, page, size: 100 }, signal)
+    const rows = await getVehicles({ ...filters, aging: true, page, size: 100, sortKey: 'stockedAt', sortOrder: 'desc' }, signal)
     ids.push(...rows.filter((vehicle) => visibleIds.has(vehicle.id)).map((vehicle) => vehicle.id))
     if (
       rows.length < 100 ||

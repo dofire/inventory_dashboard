@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { InventoryFilters } from '../types'
+import { sortKeys, type InventoryFilters, type SortKey } from '../types'
 
 const subscribe = (onChange: () => void) => {
   window.addEventListener('popstate', onChange)
@@ -7,6 +7,8 @@ const subscribe = (onChange: () => void) => {
 }
 const snapshot = () => window.location.search
 export const defaultFilters: InventoryFilters = {
+  sortKey: '',
+  sortOrder: '',
   make: '',
   model: '',
   age: '',
@@ -19,7 +21,10 @@ function parseFilters(search: string): InventoryFilters {
   const page = Number(params.get('page') || 0)
   const size = Number(params.get('size') || 10)
   const age = params.get('age') || ''
+  const sortKey = params.get('sortKey') as SortKey
   return {
+    sortKey: sortKeys.includes(sortKey) ? sortKey : '',
+    sortOrder: sortKeys.includes(sortKey) ? (params.get('sortOrder') === 'asc' ? 'asc' : 'desc') : '',
     make: params.get('make') || '',
     model: params.get('make') ? params.get('model') || '' : '',
     age:

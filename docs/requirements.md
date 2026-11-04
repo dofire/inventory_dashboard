@@ -24,10 +24,18 @@ Tempo provide bidirectional trace/log links. See
 
 ## Mock account login
 
+The login page offers an account dropdown with Tony and John so users do not
+need to type their account name.
+
 The web app requires a mock account login before showing inventory. `POST /login`
 accepts an `account` (case-insensitive, trimmed): `tony` or `john`. Each returns a
 stable UUID `userId`, distinct `accountId`, account name, display name, age, and
-email. Unknown accounts are rejected with HTTP 401. No password is required;
+email. Login also requires choosing `dealershipId` from `DEALER_HCM_001` or
+`DEALER_HN_002`. The backend validates and returns the selection in the profile;
+it is saved in the browser session and shown in Settings. Older stored sessions
+without a dealership require signing in again. Inventory, filter options, aging checks, pagination, and proposed actions are
+scoped to the selected dealership. Query caches include dealership identity.
+This mock selection is not production authentication or authorization. Unknown accounts are rejected with HTTP 401. No password is required;
 this is a mock identity flow, not production authentication or authorization.
 The complete profile is stored in local storage and restored on reload. Settings
 shows the profile and provides logout, which removes the stored session, clears
@@ -38,7 +46,9 @@ cached data, and returns to login.
 Every backend response, including errors and actuator responses, includes
 `X-Request-ID` and `X-Trace-ID` headers. Request IDs accept a valid incoming UUID
 or generate a new one; trace IDs use the active server trace, with a generated
-fallback when no span exists. Response bodies retain their existing formats.
+fallback when no span exists. Application response bodies use `{ requestId, traceId, data }`; actuator bodies
+retain their standard formats. Request payload classes inherit `BaseRequest`,
+and response envelopes inherit `BaseResponse<T>`.
 Frontend API errors retain both IDs for troubleshooting. The frontend does not
 use React Strict Mode's development remount, avoiding cancelled initial queries
 caused by that remount; query abort signals remain enabled for normal lifecycle
@@ -72,3 +82,16 @@ asynchronous completion is outside the synchronous wrapper's scope.
 Span lifecycle demo logs use the `<> ` message prefix and carry each span's own
 traceId/spanId. Logging is enabled by default and can be disabled with
 `SPAN_LOGS_ENABLED=false`; request payloads and exception messages are excluded.
+
+## Local soak testing
+
+`test/soak/soak.ts` runs 30 minutes at 20 requests/second using k6's
+constant-arrival-rate executor, covering both dealerships and all business APIs.
+It checks errors, P95/P99, and dropped iterations, and writes text/JSON summaries.
+Concurrent stale-version action conflicts are tracked separately from unexpected
+failures. Dedicated `soak` profile + explicit delay enable flag + test request
+header allow occasional bounded 100–500 ms latency spans, disabled by default.
+The existing dashboard includes application/host CPU, JVM memory, error rate,
+and application database pool connections below the per-API latency rows.
+Mock repositories remain in use; this is not a database query soak test.
+See [run and monitoring instructions](../test/soak/README.md).

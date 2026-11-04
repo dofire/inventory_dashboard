@@ -7,6 +7,7 @@ export const actionStatuses = ['CREATED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED
 // Java UUID accepts canonical hexadecimal IDs regardless of RFC version/variant bits.
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export const vehicleSchema = z.object({
+  dealershipId: z.string(),
   id: z.string().regex(uuidPattern),
   make: z.string(),
   model: z.string(),
@@ -19,7 +20,11 @@ export const vehicleSchema = z.object({
   actionStatus: z.enum(actionStatuses).nullable(),
 })
 export type Vehicle = z.infer<typeof vehicleSchema>
+export const sortKeys = ['make', 'model', 'price', 'status', 'stockedAt', 'daysInStock', 'action'] as const
+export type SortKey = typeof sortKeys[number]
 export type InventoryFilters = {
+  sortKey: SortKey | ''
+  sortOrder: 'asc' | 'desc' | ''
   make: string
   model: string
   age: string
@@ -27,10 +32,11 @@ export type InventoryFilters = {
   page: number
   size: number
 }
+export type InventoryQuery = InventoryFilters & { dealershipId: string }
 export const proposalSchema = z.object({
   userId: z.string().regex(uuidPattern, 'Enter a valid manager UUID.'),
   status: z.enum(actionTypes),
   actionStatus: z.enum(actionStatuses),
 })
 export type Proposal = z.infer<typeof proposalSchema>
-export type UpdateAction = Proposal & { vehicleId: string; rowVersion: number }
+export type UpdateAction = Proposal & { dealershipId: string; vehicleId: string; rowVersion: number }

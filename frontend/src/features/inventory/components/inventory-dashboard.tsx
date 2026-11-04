@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
 import { ThemeToggle } from '../../../components/ui/theme-toggle'
+import { LoadingOverlay } from '../../../components/ui/loading-overlay'
 import { useFilters } from '../hooks/use-filters'
 import { useInventory } from '../hooks/use-inventory'
 import { useInventoryUi } from '../store/ui-store'
@@ -25,7 +26,7 @@ import { ActionDialog } from './action-dialog'
 export function InventoryDashboard({ profile, onLogout }: { profile: Profile; onLogout: () => void }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { filters, update } = useFilters()
-  const { inventory, options, aging, hasNext, next } = useInventory(filters)
+  const { inventory, options, aging, hasNext, next } = useInventory(filters, profile.dealershipId)
   const client = useQueryClient()
   const selectedId = useInventoryUi((state) => state.selectedId)
   const selectVehicle = useInventoryUi((state) => state.selectVehicle)
@@ -39,13 +40,16 @@ export function InventoryDashboard({ profile, onLogout }: { profile: Profile; on
     setNotice('Inventory refreshed. Reopen a vehicle to review its latest proposal.')
   }
   const activeFilters = Boolean(filters.make || filters.model || filters.age || filters.aging)
+  const isLoading = inventory.isFetching || options.isFetching || aging.isFetching || next.isFetching
   return (
     <div className="app-shell">
+      {isLoading && <LoadingOverlay label="Loading inventory…" />}
       <div className="main-shell">
         <main id="main">
           <div className="page-heading">
             <div>
               <h1 id="inventory-heading" tabIndex={-1}>Vehicle inventory</h1>
+              <p className="muted">{profile.dealershipId}</p>
             </div>
             <div className="page-actions">
               <ThemeToggle />
@@ -73,11 +77,7 @@ export function InventoryDashboard({ profile, onLogout }: { profile: Profile; on
               </button>
             </div>
           )}
-          <section className="inventory-panel" aria-labelledby="inventory-heading" aria-busy={inventory.isFetching}>
-            <div className="inventory-loading-track" role="status">
-              <span className="sr-only">{inventory.isFetching ? 'Updating inventory' : ''}</span>
-              {inventory.isFetching && <div className="inventory-loading-bar" />}
-            </div>
+          <section className="inventory-panel" aria-labelledby="inventory-heading" aria-busy={isLoading}>
             <Filters
               filters={filters}
               makes={options.data?.makes || {}}
@@ -125,6 +125,18 @@ export function InventoryDashboard({ profile, onLogout }: { profile: Profile; on
               </div>
             ) : (
               <VehicleTable
+                sortKey={filters.sortKey}
+                sortOrder={filters.sortOrder}
+                onSort={(sortKey) => {
+                  selectVehicle(null)
+                  if (filters.sortKey !== sortKey) {
+                    update({ sortKey, sortOrder: 'asc' })
+                  } else if (filters.sortOrder === 'asc') {
+                    update({ sortOrder: 'desc' })
+                  } else {
+                    update({ sortKey: '', sortOrder: '' })
+                  }
+                }}
                 vehicles={inventory.data}
                 agingIds={inventory.isPlaceholderData ? [] : aging.data || []}
                 agingPending={inventory.isFetching || aging.isPending}
@@ -215,6 +227,7 @@ export function InventoryDashboard({ profile, onLogout }: { profile: Profile; on
             <summary>Account details</summary>
             <dl>
               <div><dt>Age</dt><dd>{profile.age}</dd></div>
+              <div><dt>Dealership</dt><dd>{profile.dealershipId}</dd></div>
               <div><dt>Account ID</dt><dd>{profile.accountId}</dd></div>
               <div><dt>User ID</dt><dd className="settings-user-id">{profile.userId}</dd></div>
             </dl>

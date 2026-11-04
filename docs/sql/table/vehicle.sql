@@ -1,6 +1,7 @@
 -- PostgreSQL reference DDL for VehicleEntity; not an application migration.
 CREATE TABLE public.vehicle (
     id UUID PRIMARY KEY,
+    dealership_id VARCHAR(50) NOT NULL,
     make VARCHAR(255) NOT NULL,
     model VARCHAR(255) NOT NULL,
     status VARCHAR(255) NOT NULL,
@@ -16,8 +17,8 @@ CREATE TABLE public.vehicle (
 CREATE INDEX idx_vehicle_stocked_id
     ON public.vehicle (stocked_at DESC, id DESC);
 
-CREATE INDEX idx_vehicle_make_stocked_id
-    ON public.vehicle (make, stocked_at DESC, id DESC);
+CREATE INDEX idx_vehicle_dealership_stocked_id
+    ON public.vehicle (dealership_id, stocked_at DESC, id DESC);
 
 COMMENT ON COLUMN public.vehicle.price IS 'Amount in currency minor units (e.g. cents for USD)';
 COMMENT ON COLUMN public.vehicle.currency IS 'Uppercase ISO 4217 currency code (e.g. USD, VND)';

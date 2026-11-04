@@ -30,7 +30,9 @@ class TracingWebConfigurationTests {
         Observation request = Observation.start("http.server.requests", registry);
         try (Observation.Scope scope = request.openScope(); var validator = config.tracingValidator()) {
             validator.afterPropertiesSet();
-            var payload = new UpdateStatusRequest(null, null, 0L, VehicleActionType.MAINTENANCE_PLANNED, null);
+            var payload = new UpdateStatusRequest();
+            payload.setRowVersion(0L);
+            payload.setStatus(VehicleActionType.MAINTENANCE_PLANNED);
             var errors = new BeanPropertyBindingResult(payload, "request");
             validator.validate(payload, errors);
             assertTrue(errors.hasFieldErrors("userId"));
@@ -74,7 +76,7 @@ class TracingWebConfigurationTests {
         com.dofire.sv_vehicle.api.get_vehicles.GetVehiclesService service = serviceFactory.getProxy();
         Observation request = Observation.start("http.server.requests", registry);
         try (Observation.Scope scope = request.openScope()) {
-            assertEquals(6, service.findVehicles(0, 10, null, null, null, null).size());
+            assertEquals(6, service.findVehicles("DEALER_HCM_001", 0, 10, null, null, null, null, "stockedAt", "desc").size());
             assertSame(request, registry.getCurrentObservation());
         } finally {
             request.stop();

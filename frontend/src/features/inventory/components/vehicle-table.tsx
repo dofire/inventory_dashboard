@@ -1,7 +1,7 @@
-import { ArrowUpRight, Clock3, TriangleAlert } from 'lucide-react'
+import { ArrowUpRight, ArrowUp, ArrowDown, ArrowUpDown, Clock3, TriangleAlert } from 'lucide-react'
 import { Badge } from '../../../components/ui/badge'
 import { Button } from '../../../components/ui/button'
-import type { Vehicle } from '../types'
+import type { Vehicle, SortKey } from '../types'
 import { daysInStock, formatPrice, labels, stockDate } from '../utils/format'
 
 export function VehicleTable({
@@ -9,12 +9,26 @@ export function VehicleTable({
   agingIds,
   agingPending,
   onSelect,
+  sortKey,
+  sortOrder,
+  onSort,
 }: {
+  sortKey: SortKey | ''
+  sortOrder: 'asc' | 'desc' | ''
+  onSort: (key: SortKey) => void
   vehicles: Vehicle[]
   agingIds: string[]
   agingPending: boolean
   onSelect: (id: string) => void
 }) {
+  const columns: { label: string; key: SortKey }[] = [
+    { label: 'Vehicle', key: 'make' },
+    { label: 'Price', key: 'price' },
+    { label: 'Status', key: 'status' },
+    { label: 'Stocked date', key: 'stockedAt' },
+    { label: 'Time in stock', key: 'daysInStock' },
+    { label: 'Latest action', key: 'action' },
+  ]
   return (
     <div className="table-scroll">
       <table>
@@ -23,12 +37,20 @@ export function VehicleTable({
         </caption>
         <thead>
           <tr>
-            <th scope="col">Vehicle</th>
-            <th scope="col">Price</th>
-            <th scope="col">Status</th>
-            <th scope="col">Stocked date</th>
-            <th scope="col">Time in stock</th>
-            <th scope="col">Latest action</th>
+            {columns.map((column) => (
+              <th key={column.key} scope="col" aria-sort={sortKey === column.key ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button
+                  className={`column-sort ${sortKey === column.key ? 'column-sort-active' : ''}`}
+                  title={sortKey !== column.key ? 'Sort ascending' : sortOrder === 'asc' ? 'Sort descending' : 'Reset sorting'}
+                  onClick={() => onSort(column.key)}
+                >
+                  {column.label}
+                  {sortKey === column.key
+                    ? sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                    : <ArrowUpDown size={14} />}
+                </button>
+              </th>
+            ))}
             <th scope="col">
               <span className="sr-only">Manage</span>
             </th>

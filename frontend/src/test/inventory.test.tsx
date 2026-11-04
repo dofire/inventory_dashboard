@@ -9,8 +9,11 @@ import { useInventoryUi } from '../features/inventory/store/ui-store'
 import type { UpdateAction, Vehicle } from '../features/inventory/types'
 import { formatPrice } from '../features/inventory/utils/format'
 
+const json = (data: unknown) => HttpResponse.json({ requestId: crypto.randomUUID(), traceId: 'a'.repeat(32), data })
+
 const managerId = '00000000-0000-0000-0000-000000000100'
 const fixture: Vehicle = {
+  dealershipId: 'DEALER_HCM_001',
   id: '00000000-0000-0000-0000-000000000001',
   make: 'Toyota',
   model: 'Corolla',
@@ -27,13 +30,13 @@ let saved: UpdateAction | undefined
 let requests: URL[]
 const server = setupServer(
   http.get('*/vehicle-filters', () =>
-    HttpResponse.json({ makes: { Toyota: ['Corolla'], Honda: ['Civic'] } }),
+    json({ makes: { Toyota: ['Corolla'], Honda: ['Civic'] } }),
   ),
   http.get('*/vehicles', ({ request }) => {
     const url = new URL(request.url)
     requests.push(url)
     const make = url.searchParams.get('make')
-    return HttpResponse.json(
+    return json(
       Number(url.searchParams.get('page') || 0) > 0 || (make && make !== vehicle.make)
         ? []
         : [vehicle],
@@ -47,18 +50,18 @@ const server = setupServer(
       actionStatus: saved.actionStatus,
       rowVersion: vehicle.rowVersion + 1,
     }
-    return new HttpResponse(null, { status: 204 })
+    return json(null)
   }),
 )
 const clients: QueryClient[] = []
-function renderDashboard() {
+function renderDashboard(dealershipId: 'DEALER_HCM_001' | 'DEALER_HN_002' = 'DEALER_HCM_001') {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
   })
   clients.push(client)
   return render(
     <QueryClientProvider client={client}>
-      <InventoryDashboard profile={{ userId: "11111111-1111-4111-8111-111111111111", accountId: "account-tony", account: "tony", name: "Tony Nguyen", age: 32, email: "tony@example.com" }} onLogout={() => {}} />
+      <InventoryDashboard profile={{ dealershipId, userId: "11111111-1111-4111-8111-111111111111", accountId: "account-tony", account: "tony", name: "Tony Nguyen", age: 32, email: "tony@example.com" }} onLogout={() => {}} />
     </QueryClientProvider>,
   )
 }
@@ -98,7 +101,7 @@ describe('inventory dashboard', () => {
   it('does not classify a vehicle as aging from its date when the server excludes it', async () => {
     server.use(
       http.get('*/vehicles', ({ request }) =>
-        HttpResponse.json(new URL(request.url).searchParams.has('aging') ? [] : [vehicle]),
+        json(new URL(request.url).searchParams.has('aging') ? [] : [vehicle]),
       ),
     )
     renderDashboard()
@@ -113,7 +116,7 @@ describe('inventory dashboard', () => {
     await user.selectOptions(screen.getByLabelText('Make'), 'Toyota')
     await user.selectOptions(screen.getByLabelText('Model'), 'Corolla')
     await user.type(screen.getByLabelText('Minimum days in stock'), '90')
-    await user.click(screen.getByRole('button', { name: 'Apply' }))
+    await user.keyboard('{Enter}')
     await user.click(screen.getByLabelText('Aging only (>90 days)'))
     await waitFor(() => expect(window.location.search).toContain('aging=true'))
     expect(window.location.search).toContain('make=Toyota')
@@ -129,11 +132,37 @@ describe('inventory dashboard', () => {
     await user.click(screen.getByRole('button', { name: 'Reset' }))
     expect(window.location.search).toBe('')
   })
+  it('cycles column sorting through ascending, descending, and reset', async () => {
+    renderDashboard()
+    await screen.findByRole('table')
+    await userEvent.click(screen.getByRole('button', { name: 'Price' }))
+    await waitFor(() => expect(requests.some((url) =>
+      url.searchParams.get('sortKey') === 'price' && url.searchParams.get('sortOrder') === 'asc',
+    )).toBe(true))
+    expect(screen.getByRole('columnheader', { name: 'Price' })).toHaveAttribute('aria-sort', 'ascending')
+    await userEvent.click(screen.getByRole('button', { name: 'Price' }))
+    await waitFor(() => expect(requests.some((url) =>
+      url.searchParams.get('sortKey') === 'price' && url.searchParams.get('sortOrder') === 'desc',
+    )).toBe(true))
+    expect(screen.getByRole('columnheader', { name: 'Price' })).toHaveAttribute('aria-sort', 'descending')
+    const requestCount = requests.length
+    await userEvent.click(screen.getByRole('button', { name: 'Price' }))
+    await waitFor(() => expect(requests.slice(requestCount).some((url) =>
+      !url.searchParams.has('sortKey') && !url.searchParams.has('sortOrder'),
+    )).toBe(true))
+    expect(window.location.search).not.toContain('sortKey')
+    expect(window.location.search).not.toContain('sortOrder')
+    expect(screen.getByRole('columnheader', { name: 'Price' })).toHaveAttribute('aria-sort', 'none')
+    expect(screen.getByRole('button', { name: 'Price' })).not.toHaveClass('column-sort-active')
+    await userEvent.click(screen.getByRole('button', { name: 'Stocked date' }))
+    expect(screen.getByRole('columnheader', { name: 'Stocked date' })).toHaveAttribute('aria-sort', 'ascending')
+
+  })
   it('shows loading skeletons', async () => {
     server.use(
       http.get('*/vehicles', async () => {
         await delay(150)
-        return HttpResponse.json([])
+        return json([])
       }),
     )
     renderDashboard()
@@ -141,7 +170,7 @@ describe('inventory dashboard', () => {
     await screen.findByText('Your inventory is empty')
   })
   it('shows an empty result with reset', async () => {
-    server.use(http.get('*/vehicles', () => HttpResponse.json([])))
+    server.use(http.get('*/vehicles', () => json([])))
     window.history.replaceState(null, '', '/?make=Honda')
     renderDashboard()
     expect(await screen.findByText('No vehicles match these filters')).toBeVisible()
@@ -152,28 +181,48 @@ describe('inventory dashboard', () => {
     server.use(http.get('*/vehicles', () => new HttpResponse(null, { status: 503 })))
     renderDashboard()
     expect(await screen.findByText('We couldn’t load your inventory')).toBeVisible()
-    server.use(http.get('*/vehicles', () => HttpResponse.json([vehicle])))
+    server.use(http.get('*/vehicles', () => json([vehicle])))
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('table')).toBeVisible()
   })
-  it('validates manager UUID and creates a proposal with the current version', async () => {
+  it('creates a proposal using the signed-in user and dealership', async () => {
     renderDashboard()
     const dialog = await openProposal()
+    expect(within(dialog).queryByLabelText('Manager UUID')).not.toBeInTheDocument()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save proposal' }))
-    expect(await screen.findByText('Enter a valid manager UUID.')).toBeVisible()
-    expect(saved).toBeUndefined()
-    await userEvent.type(within(dialog).getByLabelText('Manager UUID'), managerId)
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Save proposal' }))
-    await waitFor(() =>
-      expect(saved).toEqual({
-        userId: managerId,
-        vehicleId: vehicle.id,
-        rowVersion: 0,
-        status: 'PRICE_REDUCTION_PLANNED',
-        actionStatus: 'CREATED',
+    await waitFor(() => expect(saved).toEqual({
+      dealershipId: 'DEALER_HCM_001',
+      userId: '11111111-1111-4111-8111-111111111111',
+      vehicleId: vehicle.id,
+      rowVersion: 0,
+      status: 'PRICE_REDUCTION_PLANNED',
+      actionStatus: 'CREATED',
+    }))
+    expect(await screen.findByText('Proposal saved.')).toBeVisible()
+  })
+  it('scopes inventory, aging, filter options, and actions to the chosen dealership', async () => {
+    const hanoi = { ...fixture, id: '00000000-0000-0000-0000-000000000007', dealershipId: 'DEALER_HN_002', make: 'Mazda', model: 'CX-5' }
+    let filtersDealership: string | null = null
+    server.use(
+      http.get('*/vehicles', ({ request }) => {
+        const url = new URL(request.url)
+        requests.push(url)
+        return json(url.searchParams.get('dealershipId') === hanoi.dealershipId ? [hanoi] : [fixture])
+      }),
+      http.get('*/vehicle-filters', ({ request }) => {
+        filtersDealership = new URL(request.url).searchParams.get('dealershipId')
+        return json({ makes: { Mazda: ['CX-5'] } })
       }),
     )
-    expect(await screen.findByText('Proposal saved.')).toBeVisible()
+    renderDashboard('DEALER_HN_002')
+    await screen.findByRole('button', { name: 'Mazda CX-5' })
+    expect(screen.queryByRole('button', { name: 'Toyota Corolla' })).not.toBeInTheDocument()
+    expect(filtersDealership).toBe(hanoi.dealershipId)
+    await waitFor(() => expect(requests.some((url) => url.searchParams.get('aging') === 'true')).toBe(true))
+    expect(requests.every((url) => url.searchParams.get('dealershipId') === hanoi.dealershipId)).toBe(true)
+    await userEvent.click(screen.getByRole('button', { name: 'Manage Mazda CX-5' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save proposal' }))
+    await waitFor(() => expect(saved).toMatchObject({ dealershipId: hanoi.dealershipId, vehicleId: hanoi.id }))
   })
   it('updates the latest action status using the existing proposal endpoint', async () => {
     vehicle.action = 'MAINTENANCE_PLANNED'
@@ -226,7 +275,7 @@ describe('inventory dashboard', () => {
     server.use(
       http.get('*/vehicles', ({ request }) => {
         const page = Number(new URL(request.url).searchParams.get('page'))
-        return HttpResponse.json(
+        return json(
           page === 0 ? firstPage : page === 1 ? [{ ...vehicle, model: 'Camry' }] : [],
         )
       }),

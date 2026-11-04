@@ -26,16 +26,19 @@ public class GetVehiclesService {
     }
 
     public List<VehicleView> findVehicles(
+        String dealershipId,
         int page,
         int size,
         List<String> makes,
         List<String> models,
         Integer age,
-        Boolean aging
+        Boolean aging,
+        String sortKey,
+        String sortOrder
     ) {
         Instant now = Instant.now();
 
-        var vehicles = repository.findAll();
+        var vehicles = repository.findByDealership(dealershipId);
 
         return Observation.createNotStarted(
             "vehicles.filter-and-sort",
@@ -48,6 +51,8 @@ public class GetVehiclesService {
             models,
             age,
             aging,
+            sortKey,
+            sortOrder,
             now
         ));
     }
@@ -60,6 +65,8 @@ public class GetVehiclesService {
         List<String> models,
         Integer age,
         Boolean aging,
+        String sortKey,
+        String sortOrder,
         Instant now
     ) {
         log.info(
@@ -82,8 +89,10 @@ public class GetVehiclesService {
                     aging,
                     now
                 ))
-                .sorted(Comparator.comparing(VehicleView::stockedAt)
-                        .thenComparing(VehicleView::id).reversed())
+                .sorted(sortComparator(
+                    sortKey,
+                    sortOrder
+                ))
                 .skip((long) page * size)
                 .limit(size)
                 .toList();
@@ -96,6 +105,37 @@ public class GetVehiclesService {
         );
 
         return results;
+    }
+
+    private Comparator<VehicleView> sortComparator(
+        String sortKey,
+        String sortOrder
+    ) {
+        Comparator<VehicleView> comparator = switch (sortKey) {
+            case "make" -> Comparator.comparing(
+                VehicleView::make,
+                String.CASE_INSENSITIVE_ORDER
+            )
+                    .thenComparing(
+                VehicleView::model,
+                String.CASE_INSENSITIVE_ORDER
+            );
+            case "model" -> Comparator.comparing(
+                VehicleView::model,
+                String.CASE_INSENSITIVE_ORDER
+            );
+            case "price" -> Comparator.comparing(VehicleView::currency)
+                    .thenComparing(VehicleView::price);
+            case "status" -> Comparator.comparing(vehicle -> vehicle.status().name());
+            case "daysInStock" -> Comparator.comparing(VehicleView::stockedAt).reversed();
+            case "action" -> Comparator.comparing(
+                vehicle -> vehicle.action() == null ? "" : vehicle.action().name()
+            );
+            default -> Comparator.comparing(VehicleView::stockedAt);
+        };
+
+        comparator = comparator.thenComparing(VehicleView::id);
+        return "desc".equalsIgnoreCase(sortOrder) ? comparator.reversed() : comparator;
     }
 
     private boolean matchesStockAge(

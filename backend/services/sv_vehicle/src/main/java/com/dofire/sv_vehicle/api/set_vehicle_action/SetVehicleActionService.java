@@ -21,7 +21,7 @@ public class SetVehicleActionService {
 
         log.info(
             "<> Saving a {} proposal with status {}.",
-            request.status(),
+            request.getStatus(),
             actionStatus
         );
 
@@ -34,7 +34,7 @@ public class SetVehicleActionService {
     }
 
     private VehicleActionStatus resolveActionStatus(UpdateStatusRequest request) {
-        return request.actionStatus() == null ? VehicleActionStatus.CREATED : request.actionStatus();
+        return request.getActionStatus() == null ? VehicleActionStatus.CREATED : request.getActionStatus();
     }
 
     private void recordAction(
@@ -42,11 +42,12 @@ public class SetVehicleActionService {
         VehicleActionStatus actionStatus
     ) {
         repository.logAction(
-            request.vehicleId(),
-            request.rowVersion(),
-            request.status(),
+            request.getDealershipId(),
+            request.getVehicleId(),
+            request.getRowVersion(),
+            request.getStatus(),
             actionStatus,
-            request.userId(),
+            request.getUserId(),
             Instant.now()
         );
     }

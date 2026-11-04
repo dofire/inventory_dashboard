@@ -19,8 +19,8 @@ public class GetVehicleFiltersService {
         this.repository = repository;
     }
 
-    public Map<String, List<String>> filters() {
-        var options = buildFilterOptions(repository.findAll());
+    public Map<String, List<String>> filters(String dealershipId) {
+        var options = buildFilterOptions(repository.findByDealership(dealershipId));
 
         log.info(
             "<> Make and model filters are ready: {} makes and {} model options.",

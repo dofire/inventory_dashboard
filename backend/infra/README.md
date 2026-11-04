@@ -391,3 +391,12 @@ steps have different span IDs. Use **View trace** to open the Tempo waterfall.
 Business logs also report useful outcomes: how many vehicles were checked and
 returned, how many make/model options were built, and when a proposal was saved.
 All custom messages retain the `<> ` prefix and existing trace/span correlation.
+
+## Soak testing
+
+The [TypeScript k6 soak test](../../test/soak/README.md) targets 20 RPS for
+30 minutes using the existing stack. The Grafana dashboard's bottom resource
+row shows CPU, JVM memory, application database pool connections, and unexpected
+error rates. Opt-in test latency appears as `soak.simulated-delay` child spans
+in Tempo and the existing API percentile charts. It requires the `soak` Spring
+profile, `SOAK_DELAYS_ENABLED=true`, and the test header; it is off by default.

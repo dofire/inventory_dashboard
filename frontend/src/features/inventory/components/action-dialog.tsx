@@ -9,6 +9,7 @@ import {
   DialogDescription,
 } from '../../../components/ui/dialog'
 import { Button } from '../../../components/ui/button'
+import { LoadingOverlay } from '../../../components/ui/loading-overlay'
 import { Badge } from '../../../components/ui/badge'
 import { ApiError } from '../../../lib/api'
 import { saveAction } from '../api/inventory'
@@ -40,7 +41,7 @@ export function ActionDialog({
   })
   const mutation = useMutation({
     mutationFn: (values: Proposal) =>
-      saveAction({ ...values, userId: profile.userId, vehicleId: vehicle.id, rowVersion: vehicle.rowVersion }),
+      saveAction({ ...values, dealershipId: profile.dealershipId, userId: profile.userId, vehicleId: vehicle.id, rowVersion: vehicle.rowVersion }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['inventory'] })
       onSaved()
@@ -62,6 +63,9 @@ export function ActionDialog({
           document.getElementById('inventory-heading')?.focus()
         }}
       >
+        {(mutation.isPending || refresh.isPending) && (
+          <LoadingOverlay label={mutation.isPending ? 'Saving proposal…' : 'Refreshing inventory…'} />
+        )}
         <DialogTitle className="dialog-title">Vehicle details</DialogTitle>
         <DialogDescription className="dialog-description">
           Review this vehicle and manage its next action.

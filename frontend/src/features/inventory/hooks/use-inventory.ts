@@ -1,17 +1,21 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { getVehicles, getFilters, getVisibleAgingIds } from '../api/inventory'
-import type { InventoryFilters } from '../types'
+import type { InventoryFilters, Vehicle } from '../types'
 
-export function useInventory(filters: InventoryFilters) {
-  const inventory = useQuery({
+export function useInventory(inventoryFilters: InventoryFilters, dealershipId: string) {
+  const filters = { ...inventoryFilters, dealershipId }
+  const inventory = useQuery<Vehicle[]>({
     queryKey: ['inventory', filters],
     staleTime: 0,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) => {
+      const previousFilters = previousQuery?.queryKey[1] as { dealershipId?: string } | undefined
+      return previousFilters?.dealershipId === dealershipId ? previousData : undefined
+    },
     queryFn: ({ signal }) => getVehicles(filters, signal),
   })
   const options = useQuery({
-    queryKey: ['vehicle-filters'],
-    queryFn: ({ signal }) => getFilters(signal),
+    queryKey: ['vehicle-filters', dealershipId],
+    queryFn: ({ signal }) => getFilters(dealershipId, signal),
     staleTime: 300_000,
   })
   const aging = useQuery({

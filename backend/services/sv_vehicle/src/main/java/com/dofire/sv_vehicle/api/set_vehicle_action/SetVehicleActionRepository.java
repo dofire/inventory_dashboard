@@ -15,8 +15,23 @@ public class SetVehicleActionRepository {
         this.store = store;
     }
 
-    public void logAction(UUID vehicleId, long rowVersion, VehicleActionType action,
-                          VehicleActionStatus actionStatus, UUID userId, Instant now) {
-        store.logAction(vehicleId, rowVersion, action, actionStatus, userId, now);
+    public void logAction(
+        String dealershipId,
+        UUID vehicleId,
+        long rowVersion,
+        VehicleActionType action,
+        VehicleActionStatus actionStatus,
+        UUID userId,
+        Instant now
+    ) {
+        store.logAction(
+            dealershipId,
+            vehicleId,
+            rowVersion,
+            action,
+            actionStatus,
+            userId,
+            now
+        );
     }
 }

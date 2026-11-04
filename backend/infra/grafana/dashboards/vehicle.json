@@ -2,7 +2,7 @@
   "uid": "sv-vehicle",
   "title": "Vehicle API performance",
   "schemaVersion": 39,
-  "version": 6,
+  "version": 7,
   "refresh": "15s",
   "time": {
     "from": "now-30m",
@@ -962,7 +962,7 @@
     {
       "id": 16,
       "title": "P95 execution time",
-      "description": "Full HTTP request duration. Login currently has no separate service/business-logic span.",
+      "description": "Full HTTP request latency, with the opt-in soak delay span when test delays are enabled.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -973,6 +973,12 @@
           "refId": "A",
           "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"sv_vehicle\",uri=\"/login\"}[$__rate_interval])))",
           "legendFormat": "Full request",
+          "exemplar": true
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.95, sum by (le, span_name) (rate(traces_spanmetrics_latency_bucket{service=\"sv_vehicle\",api_operation=\"AuthController.login\",span_name=\"soak.simulated-delay\"}[$__rate_interval])))",
+          "legendFormat": "{{span_name}}",
           "exemplar": true
         }
       ],
@@ -1053,7 +1059,7 @@
     {
       "id": 17,
       "title": "P99 execution time",
-      "description": "Full HTTP request duration. Login currently has no separate service/business-logic span.",
+      "description": "Full HTTP request latency, with the opt-in soak delay span when test delays are enabled.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -1064,6 +1070,12 @@
           "refId": "A",
           "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"sv_vehicle\",uri=\"/login\"}[$__rate_interval])))",
           "legendFormat": "Full request",
+          "exemplar": true
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le, span_name) (rate(traces_spanmetrics_latency_bucket{service=\"sv_vehicle\",api_operation=\"AuthController.login\",span_name=\"soak.simulated-delay\"}[$__rate_interval])))",
+          "legendFormat": "{{span_name}}",
           "exemplar": true
         }
       ],
@@ -1140,6 +1152,221 @@
           ]
         }
       }
+    },
+    {
+      "id": 18,
+      "title": "Soak test \u00b7 application resources",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 19,
+      "title": "Unexpected server errors",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 57,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"sv_vehicle\",uri!~\"/actuator.*\",status=~\"5..\"}[$__rate_interval])) / clamp_min(sum(rate(http_server_requests_seconds_count{job=\"sv_vehicle\",uri!~\"/actuator.*\"}[$__rate_interval])), 0.000001)",
+          "legendFormat": "5xx rate"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"sv_vehicle\",uri!~\"/actuator.*\",status=~\"4..\",status!=\"409\"}[$__rate_interval])) / clamp_min(sum(rate(http_server_requests_seconds_count{job=\"sv_vehicle\",uri!~\"/actuator.*\"}[$__rate_interval])), 0.000001)",
+          "legendFormat": "4xx excluding conflicts"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "description": "Application and host metrics from the existing Spring Boot Prometheus scrape. No data means unavailable, not zero."
+    },
+    {
+      "id": 20,
+      "title": "CPU usage",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 57,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_cpu_usage{job=\"sv_vehicle\"}",
+          "legendFormat": "Application \u00b7 {{instance}}"
+        },
+        {
+          "refId": "B",
+          "expr": "system_cpu_usage{job=\"sv_vehicle\"}",
+          "legendFormat": "System \u00b7 {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "description": "Application and host metrics from the existing Spring Boot Prometheus scrape. No data means unavailable, not zero."
+    },
+    {
+      "id": 21,
+      "title": "JVM memory",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 65,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (area, instance) (jvm_memory_used_bytes{job=\"sv_vehicle\"})",
+          "legendFormat": "Used {{area}} \u00b7 {{instance}}"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (instance) (jvm_memory_max_bytes{job=\"sv_vehicle\",area=\"heap\"})",
+          "legendFormat": "Heap limit \u00b7 {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "description": "Application and host metrics from the existing Spring Boot Prometheus scrape. No data means unavailable, not zero."
+    },
+    {
+      "id": 22,
+      "title": "Database connection pool",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 65,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hikaricp_connections_active{job=\"sv_vehicle\"}",
+          "legendFormat": "Active \u00b7 {{pool}}"
+        },
+        {
+          "refId": "B",
+          "expr": "hikaricp_connections_idle{job=\"sv_vehicle\"}",
+          "legendFormat": "Idle \u00b7 {{pool}}"
+        },
+        {
+          "refId": "C",
+          "expr": "hikaricp_connections_pending{job=\"sv_vehicle\"}",
+          "legendFormat": "Pending \u00b7 {{pool}}"
+        },
+        {
+          "refId": "D",
+          "expr": "hikaricp_connections_max{job=\"sv_vehicle\"}",
+          "legendFormat": "Limit \u00b7 {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "description": "Application and host metrics from the existing Spring Boot Prometheus scrape. No data means unavailable, not zero. Business operations use the mock store, so this test does not load PostgreSQL queries; pool values may stay idle. These are application pool connections, not all PostgreSQL server sessions."
     }
   ]
 }

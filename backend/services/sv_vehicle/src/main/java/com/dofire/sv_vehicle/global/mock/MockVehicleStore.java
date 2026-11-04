@@ -25,34 +25,155 @@ public class MockVehicleStore {
 
     public MockVehicleStore() {
         Instant now = Instant.now();
-        seed(1, "Toyota", "Corolla", 2200000L, 120, now);
-        seed(2, "Toyota", "Camry", 3100000L, 45, now);
-        seed(3, "Honda", "Civic", 2500000L, 95, now);
-        seed(4, "Honda", "Accord", 3300000L, 15, now);
-        seed(5, "Ford", "Focus", 1800000L, 180, now);
-        seed(6, "Ford", "Mustang", 4500000L, 90, now);
+        seed(
+            1,
+            "DEALER_HCM_001",
+            "Toyota",
+            "Corolla",
+            2200000L,
+            120,
+            now
+        );
+        seed(
+            2,
+            "DEALER_HCM_001",
+            "Toyota",
+            "Camry",
+            3100000L,
+            45,
+            now
+        );
+        seed(
+            3,
+            "DEALER_HCM_001",
+            "Honda",
+            "Civic",
+            2500000L,
+            95,
+            now
+        );
+        seed(
+            4,
+            "DEALER_HCM_001",
+            "Honda",
+            "Accord",
+            3300000L,
+            15,
+            now
+        );
+        seed(
+            5,
+            "DEALER_HCM_001",
+            "Ford",
+            "Focus",
+            1800000L,
+            180,
+            now
+        );
+        seed(
+            6,
+            "DEALER_HCM_001",
+            "Ford",
+            "Mustang",
+            4500000L,
+            90,
+            now
+        );
+        seed(
+            7,
+            "DEALER_HN_002",
+            "Mazda",
+            "CX-5",
+            2900000L,
+            110,
+            now
+        );
+        seed(
+            8,
+            "DEALER_HN_002",
+            "Hyundai",
+            "Tucson",
+            2800000L,
+            30,
+            now
+        );
+        seed(
+            9,
+            "DEALER_HN_002",
+            "Kia",
+            "Sportage",
+            2700000L,
+            150,
+            now
+        );
     }
 
-    private void seed(int number, String make, String model, long price, int days, Instant now) {
+    private void seed(
+        int number,
+        String dealershipId,
+        String make,
+        String model,
+        long price,
+        int days,
+        Instant now
+    ) {
         UUID id = new UUID(0, number);
-        vehicles.put(id, new VehicleView(id, make, model, VehicleStatus.AVAILABLE,
-                price, "USD", now.minus(days, ChronoUnit.DAYS), 0, null, null));
+        vehicles.put(
+            id,
+            new VehicleView(
+                id,
+                dealershipId,
+                make,
+                model,
+                VehicleStatus.AVAILABLE,
+                price,
+                "USD",
+                now.minus(
+                    days,
+                    ChronoUnit.DAYS
+                ),
+                0,
+                null,
+                null
+            )
+        );
     }
 
-    public synchronized List<VehicleView> findAll() {
-        return List.copyOf(vehicles.values());
+    public synchronized List<VehicleView> findByDealership(String dealershipId) {
+        return vehicles.values().stream()
+                .filter(vehicle -> vehicle.dealershipId().equals(dealershipId))
+                .toList();
     }
 
-    public synchronized void logAction(UUID vehicleId, long rowVersion, VehicleActionType action,
-                                       VehicleActionStatus actionStatus, UUID userId, Instant now) {
+    public synchronized void logAction(
+        String dealershipId,
+        UUID vehicleId,
+        long rowVersion,
+        VehicleActionType action,
+        VehicleActionStatus actionStatus,
+        UUID userId,
+        Instant now
+    ) {
         VehicleView vehicle = vehicles.get(vehicleId);
-        if (vehicle == null) {
+        if (vehicle == null || !vehicle.dealershipId().equals(dealershipId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Vehicle not found");
         }
         if (vehicle.rowVersion() != rowVersion) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Vehicle has changed; reload and retry");
         }
-        actionHistory.add(new VehicleActionEntity(vehicleId, action, actionStatus, userId, now));
-        vehicles.put(vehicleId, vehicle.withAction(action, actionStatus));
+        actionHistory.add(new VehicleActionEntity(
+            vehicleId,
+            action,
+            actionStatus,
+            userId,
+            now
+        ));
+        vehicles.put(
+            vehicleId,
+            vehicle.withAction(
+                action,
+                actionStatus
+            )
+        );
     }
 }

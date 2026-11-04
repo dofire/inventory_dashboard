@@ -12,7 +12,19 @@ import java.util.UUID;
 
 @RestController
 public class AuthController {
-    public record LoginRequest(@NotBlank String account) {}
+    @lombok.Getter
+    @lombok.Setter
+    public static class LoginRequest extends com.dofire.sv_vehicle.global.api.BaseRequest {
+        @NotBlank
+        private String account;
+
+    }
+
+    public static class LoginResponse extends com.dofire.sv_vehicle.global.api.BaseResponse<LoginProfile> {
+        public LoginResponse(LoginProfile data) {
+            super(data);
+        }
+    }
     public record Profile(UUID userId, String accountId, String account, String name, int age, String email) {}
 
     private static final Map<String, Profile> ACCOUNTS = Map.of(
@@ -20,12 +32,30 @@ public class AuthController {
             "john", new Profile(UUID.fromString("22222222-2222-4222-8222-222222222222"), "account-john", "john", "John Smith", 28, "john@example.com")
     );
 
+    public record LoginProfile(
+        UUID userId,
+        String accountId,
+        String account,
+        String name,
+        int age,
+        String email,
+        String dealershipId
+    ) {}
+
     @PostMapping("/login")
-    public Profile login(@Valid @RequestBody LoginRequest request) {
-        Profile profile = ACCOUNTS.get(request.account().trim().toLowerCase(Locale.ROOT));
+    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+        Profile profile = ACCOUNTS.get(request.getAccount().trim().toLowerCase(Locale.ROOT));
         if (profile == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unknown mock account");
         }
-        return profile;
+        return new LoginResponse(new LoginProfile(
+            profile.userId(),
+            profile.accountId(),
+            profile.account(),
+            profile.name(),
+            profile.age(),
+            profile.email(),
+            request.getDealershipId()
+        ));
     }
 }

@@ -1,0 +1,5 @@
+# Both this profile and an explicit flag are required; headers alone cannot enable delays.
+app:
+  soak:
+    delays-enabled: ${SOAK_DELAYS_ENABLED:false}
+    delay-probability: ${SOAK_DELAY_PROBABILITY:0.08}

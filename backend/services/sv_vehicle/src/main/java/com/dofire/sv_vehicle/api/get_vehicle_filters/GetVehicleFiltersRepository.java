@@ -13,7 +13,7 @@ public class GetVehicleFiltersRepository {
         this.store = store;
     }
 
-    public List<VehicleView> findAll() {
-        return store.findAll();
+    public List<VehicleView> findByDealership(String dealershipId) {
+        return store.findByDealership(dealershipId);
     }
 }

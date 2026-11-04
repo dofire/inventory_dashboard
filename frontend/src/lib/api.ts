@@ -37,8 +37,12 @@ export async function request<T>(
     })
   }
   if (!response.ok) throw new ApiError(response.status, response.headers.get('X-Request-ID'), response.headers.get('X-Trace-ID'))
-  const result = schema.safeParse(response.status === 204 ? undefined : await response.json())
-  if (!result.success)
+  const envelope = z.object({
+    requestId: z.string(),
+    traceId: z.string(),
+    data: schema,
+  }).safeParse(await response.json())
+  if (!envelope.success)
     throw new Error('The service returned unexpected data. Please contact your administrator.')
-  return result.data
+  return envelope.data.data
 }

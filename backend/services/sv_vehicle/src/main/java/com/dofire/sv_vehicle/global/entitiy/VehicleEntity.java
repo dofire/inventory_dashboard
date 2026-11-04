@@ -11,7 +11,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "vehicle", schema = "public", indexes = {
         @Index(name = "idx_vehicle_stocked_id", columnList = "stocked_at DESC, id DESC"),
-        @Index(name = "idx_vehicle_make_stocked_id", columnList = "make, stocked_at DESC, id DESC")
+        @Index(name = "idx_vehicle_dealership_stocked_id", columnList = "dealership_id, stocked_at DESC, id DESC")
 })
 @Getter
 @NoArgsConstructor(access = lombok.AccessLevel.PROTECTED)
@@ -19,6 +19,9 @@ public class VehicleEntity {
     @Id
     @Column(nullable = false)
     private UUID id;
+
+    @Column(name = "dealership_id", nullable = false, length = 50)
+    private String dealershipId;
 
     @Column(nullable = false)
     private String make;
@@ -43,9 +46,18 @@ public class VehicleEntity {
     @Column(nullable = false)
     private long version;
 
-    public VehicleEntity(UUID id, String make, String model, VehicleStatus status,
-                         Long price, String currency, Instant stockedAt) {
+    public VehicleEntity(
+        UUID id,
+        String dealershipId,
+        String make,
+        String model,
+        VehicleStatus status,
+        Long price,
+        String currency,
+        Instant stockedAt
+    ) {
         this.id = id;
+        this.dealershipId = dealershipId;
         this.make = make;
         this.model = model;
         this.status = status;

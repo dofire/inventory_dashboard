@@ -1,0 +1,14 @@
+{
+  "name": "vehicle-soak-test",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "inspect": "k6 inspect soak.ts",
+    "soak": "cd ../.. && k6 run test/soak/soak.ts"
+  },
+  "devDependencies": {
+    "@types/k6": "^1.0.0",
+    "typescript": "~5.9.3"
+  }
+}
