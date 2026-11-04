@@ -48,14 +48,32 @@ services:
       retries: 3
     restart: unless-stopped
 
+  tempo:
+    image: grafana/tempo:2.9.0
+    command: ["-config.file=/etc/tempo/config.yaml", "-config.expand-env=true"]
+    environment:
+      TEMPO_RETENTION: ${TEMPO_RETENTION:-24h}
+    ports: ["127.0.0.1:${TEMPO_PORT:-3200}:3200"]
+    volumes:
+      - ./backend/infra/tempo/config.yaml:/etc/tempo/config.yaml:ro
+      - tempo-data:/var/tempo
+    mem_limit: 512m
+    cpus: 1.0
+    restart: unless-stopped
+
   alloy:
     image: grafana/alloy:v1.11.0
+    ports: ["127.0.0.1:${OTLP_HTTP_PORT:-4318}:4318"]
+    mem_limit: 384m
+    cpus: 1.0
     command: ["run", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
     volumes:
       - ./backend/infra/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - ${APP_LOG_DIR:-./backend/services/sv_vehicle/logs}:/var/log/sv_vehicle:ro
       - alloy-data:/var/lib/alloy/data
     depends_on:
+      tempo:
+        condition: service_started
       loki:
         condition: service_started
     healthcheck:
@@ -94,3 +112,4 @@ volumes:
   grafana-data:
   loki-data:
   alloy-data:
+  tempo-data:

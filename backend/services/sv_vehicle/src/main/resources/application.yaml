@@ -2,6 +2,9 @@ server:
   port: ${SERVER_PORT:9001}
 
 spring:
+  task:
+    execution:
+      propagate-context: true
   application:
     name: sv_vehicle
   datasource:
@@ -16,6 +19,14 @@ spring:
     enabled: false
 
 management:
+  observations:
+    annotations:
+      enabled: true
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
   endpoints:
     web:
       exposure:
@@ -45,3 +56,17 @@ logging:
       max-file-size: 10MB
       max-history: 7
       total-size-cap: 100MB
+
+# Never collect SQL bind values or result-set contents.
+jdbc:
+  includes: CONNECTION,QUERY
+  datasource-proxy:
+    include-parameter-values: false
+    query:
+      enable-logging: false
+  resultset-operations:
+    enabled: false
+
+app:
+  tracing:
+    span-logs-enabled: ${SPAN_LOGS_ENABLED:true}
