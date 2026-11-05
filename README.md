@@ -72,6 +72,23 @@ docker compose build backend frontend
 The Docker builds package the apps; they do not run the test suites. Use
 `docker compose up -d --build` to build and start the complete application.
 
+## Monitoring
+
+Open [Grafana](http://localhost:3001) and sign in with the `GRAFANA_ADMIN_USER`
+and `GRAFANA_ADMIN_PASSWORD` from your root `.env` file. The default username/password is
+`admin`.
+
+Open the [Vehicle API performance dashboard](http://localhost:3001/d/sv-vehicle)
+to see request counts, errors, response times, CPU, memory, and database
+connections. Everything is configured automatically.
+
+To inspect logs, open **Explore**, choose **Loki**, and run
+`{app="sv_vehicle"} | json`. Expand a log entry and use **View trace**, when
+available, to see the request's trace. You can also choose **Tempo** in Explore
+and search for service `sv_vehicle` to inspect recent requests.
+
+See the [observability guide](backend/infra/README.md) for more detail.
+
 ## Test
 
 Java tests require Java 21 on the host. The k6 test requires k6 0.57 or newer.
@@ -94,19 +111,6 @@ and exercise the application through MockMvc. They do not require a running
 backend or Compose stack, and do not access your local database. If Docker is
 unavailable, the integration task fails rather than skipping the tests.
 
-The test suites check the core business rules:
-
-| Business rule | What is verified |
-| --- | --- |
-| Dealership isolation | Reads, filter options, and updates stay within the selected dealership. |
-| Inventory search | Make/model filters, stock age, sorting, and pagination work together. |
-| Accurate totals | The count query matches the filters, including empty pages. |
-| Aging stock | Vehicles older than 90 days are separated from newer stock. |
-| Proposed actions | Default/explicit statuses and the latest saved action are correct. |
-| Safe updates | Stale versions return 409; simultaneous updates produce one successful write. |
-| Transaction integrity | A failed history insert rolls back the vehicle version change. |
-| API contracts | Validation, response envelopes, pagination, and correlation IDs are checked. |
-
 HTML reports are available under
 `backend/services/sv_vehicle/build/reports/tests/test/` and
 `backend/services/sv_vehicle/build/reports/tests/integrationTest/`.
@@ -127,24 +131,3 @@ login, and action APIs. Watch latency, errors, and resource usage in
 Reports are saved to `test/soak/results/summary.txt` and `summary.json`.
 The test saves real action updates; they remain in the database afterward.
 See the [k6 guide](test/soak/README.md) for thresholds and configuration.
-
-## Monitoring
-
-Open [Grafana](http://localhost:3001) and sign in with the `GRAFANA_ADMIN_USER`
-and `GRAFANA_ADMIN_PASSWORD` from your root `.env` file. The default username is
-`admin`.
-
-Open the [Vehicle API performance dashboard](http://localhost:3001/d/sv-vehicle)
-to see request counts, errors, response times, CPU, memory, and database
-connections. Everything is configured automatically.
-
-Try filtering vehicles and saving a proposal on the website, then wait about
-30 seconds and refresh Grafana. Select the last 15 minutes as the time range.
-A fresh stack may show empty charts until you use the application.
-
-To inspect logs, open **Explore**, choose **Loki**, and run
-`{app="sv_vehicle"} | json`. Expand a log entry and use **View trace**, when
-available, to see the request's trace. You can also choose **Tempo** in Explore
-and search for service `sv_vehicle` to inspect recent requests.
-
-See the [observability guide](backend/infra/README.md) for more detail.
