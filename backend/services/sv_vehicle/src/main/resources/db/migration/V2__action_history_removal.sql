@@ -1,0 +1,1 @@
+ALTER TABLE public.vehicle_action ADD COLUMN removed BOOLEAN NOT NULL DEFAULT FALSE;

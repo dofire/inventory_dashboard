@@ -237,9 +237,9 @@ export function InventoryDashboard({ profile, onLogout }: { profile: Profile; on
           vehicle={selected}
           profile={profile}
           onClose={() => selectVehicle(null)}
-          onSaved={() => {
+          onSaved={(message) => {
             selectVehicle(null)
-            setNotice('Proposal saved.')
+            setNotice(message || 'Proposal saved.')
           }}
           onRefresh={refresh}
         />

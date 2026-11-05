@@ -188,3 +188,26 @@ Example paginated response shape:
   "pagination": { "page": 0, "size": 20, "totalItems": 0, "totalPages": 0 }
 }
 ```
+
+## Vehicle action history
+
+A vehicle has many immutable history entries through `vehicle_action.vehicle_id`.
+The inventory row shows the latest current proposal; the detail dialog shows the
+full history with action/status, timestamp, and author, newest revision first.
+`GET /vehicles/{vehicleId}/actions` requires `dealershipId` and accepts zero-based
+`page` and `size` (default 20, maximum 100). It returns the entry array in `data`
+and matching totals in sibling `pagination`. Unknown or other-dealership vehicles
+return 404. Each entry includes id, action, actionStatus, removed, rowVersion,
+createdAt, and createdBy. Earlier history entries remain visible after updates.
+
+`POST /remove-vehicle-action` accepts dealershipId, userId, vehicleId, and
+rowVersion. It clears both current action and actionStatus and increments the
+vehicle version. It appends an audited removal event rather than deleting any
+history. Removal entries expose `removed: true` with null action/status. The UI
+asks for confirmation before removal. Stale versions return 409; no current
+proposal or an inaccessible vehicle returns 404. Failed removals roll back the
+version increment. A new proposal may be created afterward.
+
+Flyway V2 adds a `removed` flag with default false to existing history rows;
+existing actions and statuses are preserved. These endpoints follow the same
+per-API controller/service/repository/payload package layout as other APIs.

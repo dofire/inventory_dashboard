@@ -53,3 +53,17 @@ export async function getVisibleAgingIds(
     page++
   }
 }
+
+const historySchema = z.object({
+  id: z.string(),
+  action: z.enum(['PRICE_REDUCTION_PLANNED', 'MAINTENANCE_PLANNED']).nullable(),
+  actionStatus: z.enum(['CREATED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).nullable(),
+  removed: z.boolean(),
+  rowVersion: z.number().int(),
+  createdAt: z.iso.datetime({ offset: true }),
+  createdBy: z.string(),
+})
+export const getVehicleHistory = (vehicleId: string, dealershipId: string, page: number, signal?: AbortSignal) =>
+  requestPaginated(`/vehicles/${vehicleId}/actions?${new URLSearchParams({ dealershipId, page: String(page), size: '20' })}`, z.array(historySchema), { signal })
+export const removeAction = (payload: Pick<UpdateAction, 'vehicleId' | 'dealershipId' | 'userId' | 'rowVersion'>) =>
+  request('/remove-vehicle-action', z.null(), { method: 'POST', body: JSON.stringify(payload) })

@@ -31,6 +31,9 @@ public class VehicleActionEntity {
     @Column(name = "action_status", nullable = false)
     private VehicleActionStatus actionStatus;
 
+    @Column(nullable = false)
+    private boolean removed;
+
     @Version
     @Column(nullable = false)
     private long version;

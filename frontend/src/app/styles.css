@@ -894,3 +894,20 @@ tbody tr:hover {
 .select-option[data-highlighted] { background: var(--surface-muted); }
 .select-option[data-state='checked'] { color: var(--primary); font-weight: 600; }
 .select-option[data-state='checked'][data-highlighted] { background: color-mix(in srgb, var(--primary) 10%, var(--surface)); }
+
+.action-history { border-top: 1px solid var(--border); padding: 18px 0; }
+.action-history h2 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.action-history > p { color: var(--muted); font-size: 12px; }
+.history-list { list-style: none; max-height: 190px; overflow-y: auto; padding: 0; margin: 0; }
+.history-list li { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.history-list li:last-child { border: 0; }
+.history-event, .history-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; }
+.history-event { font-size: 12px; }
+.history-event strong { font-weight: 550; }
+.history-event span, .history-meta { color: var(--muted); }
+.history-meta { font-size: 11px; margin-top: 5px; }
+.history-pagination { display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-top: 8px; }
+.remove-proposal { color: var(--error); }
+.vehicle-dialog .dialog-footer > .remove-proposal { margin-right: auto; }
+.removal-confirmation { margin-top: 16px; padding: 12px; background: var(--error-bg); border-radius: 8px; font-size: 12px; }
+.removal-confirmation p { margin-bottom: 8px; }

@@ -24,6 +24,11 @@ public class SpanLoggingHandler implements ObservationHandler<Observation.Contex
             java.util.Map.entry("SetVehicleActionRepository.logAction", "recording the proposal in PostgreSQL"),
             java.util.Map.entry("vehicles.filter-and-sort", "filtering and sorting inventory results"),
             java.util.Map.entry("soak.simulated-delay", "simulating a brief delay for the soak test"),
+            java.util.Map.entry("GetVehicleHistoryService.history", "loading the vehicle action history"),
+            java.util.Map.entry("GetVehicleHistoryRepository.findHistory", "reading action history from PostgreSQL"),
+            java.util.Map.entry("GetVehicleHistoryRepository.count", "counting vehicle history entries"),
+            java.util.Map.entry("RemoveVehicleActionService.remove", "removing the current vehicle proposal"),
+            java.util.Map.entry("RemoveVehicleActionRepository.remove", "recording the proposal removal in PostgreSQL"),
             java.util.Map.entry("request.validation", "checking the request values"),
             java.util.Map.entry("response.mapping", "preparing the response body"),
             java.util.Map.entry("http.server.requests", "handling the HTTP request")

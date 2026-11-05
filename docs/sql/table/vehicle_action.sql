@@ -5,6 +5,7 @@ CREATE TABLE public.vehicle_action (
     vehicle_id UUID NOT NULL,
     action VARCHAR(255) NOT NULL,
     action_status VARCHAR(255) NOT NULL,
+    removed BOOLEAN NOT NULL DEFAULT FALSE,
     version BIGINT NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     created_by UUID NOT NULL,

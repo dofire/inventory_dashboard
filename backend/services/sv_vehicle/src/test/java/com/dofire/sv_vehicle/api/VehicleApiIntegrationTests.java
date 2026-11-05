@@ -82,7 +82,7 @@ class VehicleApiIntegrationTests {
     @Test
     void applicationMigratesAndValidatesAnEmptyPostgresDatabase() {
         flyway.validate();
-        assertEquals("1", flyway.info().current().getVersion().getVersion());
+        assertEquals("2", flyway.info().current().getVersion().getVersion());
         assertEquals(0, jdbc.getJdbcTemplate().queryForObject("SELECT count(*) FROM public.vehicle", Integer.class));
         assertEquals(0, jdbc.getJdbcTemplate().queryForObject("SELECT count(*) FROM public.vehicle_action", Integer.class));
     }
@@ -301,6 +301,50 @@ class VehicleApiIntegrationTests {
         }
         assertEquals(1, jdbc.getJdbcTemplate().queryForObject("SELECT count(*) FROM public.vehicle_action", Integer.class));
         assertEquals(1, search("DEALER_HCM_001", 0, 20, null, null, null, null, "stockedAt", "desc").getFirst().rowVersion());
+    }
+
+    @Test
+    void vehicleHasManyHistoryEntriesAndRemovingTheProposalClearsBothFields() throws Exception {
+        UUID id = insert("DEALER_HCM_001", "Toyota", "Corolla", 100, 120);
+        String first = actionBody(id, "DEALER_HCM_001");
+        mvc.perform(post("/update-vehicle-status").contentType("application/json").content(first))
+                .andExpect(status().isOk());
+        mvc.perform(post("/update-vehicle-status").contentType("application/json")
+                .content(first.replace("\"rowVersion\":0", "\"rowVersion\":1").replace("MAINTENANCE_PLANNED", "PRICE_REDUCTION_PLANNED")))
+                .andExpect(status().isOk());
+        mvc.perform(get("/vehicles/" + id + "/actions").param("dealershipId", "DEALER_HCM_001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(2)))
+                .andExpect(jsonPath("$.data[0].rowVersion").value(2))
+                .andExpect(jsonPath("$.data[1].action").value("MAINTENANCE_PLANNED"));
+        String remove = """
+                {"vehicleId":"%s","dealershipId":"DEALER_HCM_001",
+                 "userId":"11111111-1111-4111-8111-111111111111","rowVersion":2}
+                """.formatted(id);
+        mvc.perform(post("/remove-vehicle-action").contentType("application/json").content(remove))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data").value(nullValue()));
+        mvc.perform(get("/vehicles").param("dealershipId", "DEALER_HCM_001"))
+                .andExpect(jsonPath("$.data[0].action").value(nullValue()))
+                .andExpect(jsonPath("$.data[0].actionStatus").value(nullValue()))
+                .andExpect(jsonPath("$.data[0].rowVersion").value(3));
+        mvc.perform(get("/vehicles/" + id + "/actions").param("dealershipId", "DEALER_HCM_001").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pagination.totalItems").value(3))
+                .andExpect(jsonPath("$.data[0].removed").value(true))
+                .andExpect(jsonPath("$.data[0].actionStatus").value(nullValue()));
+        mvc.perform(get("/vehicles/" + id + "/actions").param("dealershipId", "DEALER_HN_002"))
+                .andExpect(status().isNotFound());
+        mvc.perform(post("/remove-vehicle-action").contentType("application/json").content(remove))
+                .andExpect(status().isConflict());
+        mvc.perform(post("/remove-vehicle-action").contentType("application/json")
+                .content(remove.replace("\"rowVersion\":2", "\"rowVersion\":3")))
+                .andExpect(status().isNotFound());
+        assertEquals(3, jdbc.getJdbcTemplate().queryForObject("SELECT count(*) FROM public.vehicle_action", Integer.class));
+        assertEquals(3, search("DEALER_HCM_001", 0, 20, null, null, null, null, "stockedAt", "desc").getFirst().rowVersion());
+        mvc.perform(post("/update-vehicle-status").contentType("application/json")
+                .content(first.replace("\"rowVersion\":0", "\"rowVersion\":3")))
+                .andExpect(status().isOk());
+        assertEquals(4, search("DEALER_HCM_001", 0, 20, null, null, null, null, "stockedAt", "desc").getFirst().rowVersion());
     }
 
     private String actionBody(

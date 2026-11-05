@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { ActionHistory } from './action-history'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -13,7 +15,7 @@ import { LoadingOverlay } from '../../../components/ui/loading-overlay'
 import { Select } from '../../../components/ui/select'
 import { Badge } from '../../../components/ui/badge'
 import { ApiError } from '../../../lib/api'
-import { saveAction } from '../api/inventory'
+import { saveAction, removeAction } from '../api/inventory'
 import type { Profile } from '../../auth/session'
 import { proposalSchema, actionTypes, actionStatuses, type Vehicle, type Proposal } from '../types'
 import { labels, stockDate, formatPrice, daysInStock } from '../utils/format'
@@ -28,9 +30,10 @@ export function ActionDialog({
   vehicle: Vehicle
   profile: Profile
   onClose: () => void
-  onSaved: () => void
+  onSaved: (message?: string) => void
   onRefresh: () => Promise<void>
 }) {
+  const [confirmRemoval, setConfirmRemoval] = useState(false)
   const client = useQueryClient()
   const form = useForm<Proposal>({
     resolver: zodResolver(proposalSchema),
@@ -41,11 +44,11 @@ export function ActionDialog({
     },
   })
   const mutation = useMutation({
-    mutationFn: (values: Proposal) =>
-      saveAction({ ...values, dealershipId: profile.dealershipId, userId: profile.userId, vehicleId: vehicle.id, rowVersion: vehicle.rowVersion }),
-    onSuccess: async () => {
+    mutationFn: (values: Proposal | null) =>
+      values === null ? removeAction({ dealershipId: profile.dealershipId, userId: profile.userId, vehicleId: vehicle.id, rowVersion: vehicle.rowVersion }) : saveAction({ ...values, dealershipId: profile.dealershipId, userId: profile.userId, vehicleId: vehicle.id, rowVersion: vehicle.rowVersion }),
+    onSuccess: async (_, values) => {
       await client.invalidateQueries({ queryKey: ['inventory'] })
-      onSaved()
+      onSaved(values === null ? 'Proposal removed.' : 'Proposal saved.')
     },
   })
   const conflict = mutation.error instanceof ApiError && mutation.error.status === 409
@@ -65,7 +68,7 @@ export function ActionDialog({
         }}
       >
         {(mutation.isPending || refresh.isPending) && (
-          <LoadingOverlay label={mutation.isPending ? 'Saving proposal…' : 'Refreshing inventory…'} />
+          <LoadingOverlay label={mutation.isPending ? (mutation.variables === null ? 'Removing proposal…' : 'Saving proposal…') : 'Refreshing inventory…'} />
         )}
         <header className="vehicle-dialog-heading">
           <DialogTitle className="dialog-title">{vehicle.make} {vehicle.model}</DialogTitle>
@@ -86,6 +89,7 @@ export function ActionDialog({
             <div><dt>Dealership</dt><dd>{vehicle.dealershipId}</dd></div>
           </dl>
         </details>
+        <ActionHistory vehicle={vehicle} profile={profile} />
         <form
           onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
           className="action-form"
@@ -165,7 +169,17 @@ export function ActionDialog({
             </p>
           )}
 
+          {confirmRemoval && !conflict && (
+            <div className="removal-confirmation">
+              <p>Remove this proposal and its status? The history will be kept.</p>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmRemoval(false)} disabled={mutation.isPending}>Keep proposal</Button>
+              <Button type="button" variant="outline" size="sm" className="remove-proposal" onClick={() => mutation.mutate(null)} disabled={mutation.isPending}>Confirm removal</Button>
+            </div>
+          )}
           <div className="dialog-footer">
+            {vehicle.action && !conflict && !confirmRemoval && (
+              <Button className="remove-proposal" type="button" variant="ghost" disabled={mutation.isPending || refresh.isPending} onClick={() => setConfirmRemoval(true)}>Remove proposal</Button>
+            )}
             <Button type="button" variant="outline" disabled={mutation.isPending || refresh.isPending} onClick={onClose}>
               Cancel
             </Button>

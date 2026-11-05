@@ -73,7 +73,9 @@ data. A new database starts empty—there is no automatic inventory seed. Existi
 vehicle data must use the selected dealership ID. See the
 [vehicle table definition](docs/sql/table/vehicle.sql) when importing data.
 
-Select a vehicle to view its details and save a proposal. Changes survive backend
+Select a vehicle to view its details, review its full action history, and save
+a proposal. Removing a proposal clears its action and status while keeping the
+history. Changes survive backend
 restarts. If another user updated the same vehicle, refresh before saving again.
 
 To stop the infrastructure while keeping its data:

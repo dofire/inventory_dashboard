@@ -22,7 +22,8 @@ public class GetVehiclesRepository {
             SELECT v.*, latest.action, latest.action_status
             FROM public.vehicle v
             LEFT JOIN LATERAL (
-                SELECT a.action, a.action_status
+                SELECT CASE WHEN a.removed THEN NULL ELSE a.action END AS action,
+                       CASE WHEN a.removed THEN NULL ELSE a.action_status END AS action_status
                 FROM public.vehicle_action a
                 WHERE a.vehicle_id = v.id
                 ORDER BY a.version DESC, a.created_at DESC, a.id DESC

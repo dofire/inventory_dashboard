@@ -36,6 +36,7 @@ let vehicle: Vehicle
 let saved: UpdateAction | undefined
 let requests: URL[]
 const server = setupServer(
+  http.get('*/vehicles/:vehicleId/actions', () => json([])),
   http.get('*/vehicle-filters', () =>
     json({ makes: { Toyota: ['Corolla'], Honda: ['Civic'] } }),
   ),
@@ -244,6 +245,39 @@ describe('inventory dashboard', () => {
     expect(screen.getByRole('dialog')).toBeVisible()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save proposal' }))
     await waitFor(() => expect(saved).toMatchObject({ status: 'MAINTENANCE_PLANNED' }))
+  })
+  it('shows multiple historical actions and removal events for a vehicle', async () => {
+    server.use(http.get('*/vehicles/:vehicleId/actions', () => json([
+      { id: '3', action: null, actionStatus: null, removed: true, rowVersion: 3, createdAt: fixture.stockedAt, createdBy: managerId },
+      { id: '2', action: 'PRICE_REDUCTION_PLANNED', actionStatus: 'COMPLETED', removed: false, rowVersion: 2, createdAt: fixture.stockedAt, createdBy: managerId },
+      { id: '1', action: 'MAINTENANCE_PLANNED', actionStatus: 'CREATED', removed: false, rowVersion: 1, createdAt: fixture.stockedAt, createdBy: managerId },
+    ])))
+    renderDashboard()
+    const dialog = await openProposal()
+    expect(await within(dialog).findByText('Action history (3)')).toBeVisible()
+    const history = within(dialog).getByRole('region', { name: 'Action history' })
+    expect(within(history).getAllByRole('listitem')).toHaveLength(3)
+    expect(within(history).getByText('Proposal removed')).toBeVisible()
+    expect(within(history).getByText('Completed')).toBeVisible()
+    expect(within(history).getByText('Maintenance')).toBeVisible()
+  })
+  it('removes both the current proposal and status using the vehicle version', async () => {
+    vehicle.action = 'MAINTENANCE_PLANNED'
+    vehicle.actionStatus = 'CREATED'
+    let removed: unknown
+    server.use(http.post('*/remove-vehicle-action', async ({ request }) => {
+      removed = await request.json()
+      vehicle = { ...vehicle, action: null, actionStatus: null, rowVersion: vehicle.rowVersion + 1 }
+      return json(null)
+    }))
+    renderDashboard()
+    const dialog = await openProposal()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Remove proposal' }))
+    expect(removed).toBeUndefined()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Confirm removal' }))
+    await waitFor(() => expect(removed).toMatchObject({ dealershipId: 'DEALER_HCM_001', vehicleId: vehicle.id, rowVersion: 0 }))
+    expect(await screen.findByText('Proposal removed.')).toBeVisible()
+    expect(screen.getByText('No action planned')).toBeVisible()
   })
   it('updates the latest action status using the existing proposal endpoint', async () => {
     vehicle.action = 'MAINTENANCE_PLANNED'
