@@ -1,59 +1,84 @@
 # Vehicle Inventory Dashboard
 
-A web application for managing dealership inventory. Users can filter and sort
-vehicles, identify stock older than 90 days, and record proposed actions such as
-price reductions or maintenance.
+A dealership inventory dashboard for **Scenario B** of the Keyloop technical
+assessment. Filter vehicles, identify stock older than 90 days, and save proposed
+actions with an audit history.
 
-The frontend uses React and TypeScript. The backend uses Java 21 and Spring Boot,
-with PostgreSQL for vehicle data and action history.
-
-This implements **Scenario B: The Intelligent Inventory Dashboard** from the
-Keyloop technical assessment. The backend is the primary service implementation;
-the repository also includes a working frontend.
+Built with React, TypeScript, Java 21, Spring Boot, and PostgreSQL.
 
 ## Run
 
-Prerequisite: Docker is installed and running.
+Prerequisite: Docker is installed and running. Run commands from the repository root.
 
-1. From the repository root, run:
+1. Start the application:
 
    ```sh
    docker compose up -d --build
    ```
 
-   On a fresh checkout, first copy `.env.example` to `.env` and set
+   For a fresh checkout, first copy `.env.example` to `.env` and set
    `POSTGRES_PASSWORD` and `GRAFANA_ADMIN_PASSWORD`.
 
-2. Open the [website](http://localhost:3000). Choose Tony or John and a dealership
-   to sign in. No password is required.
+2. Open the [website](http://localhost:3000). Choose Tony or John and a dealership.
+   No password is required.
 
 3. Open [Grafana](http://localhost:3001/d/sv-vehicle). Sign in with
-   `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` from `.env` to view the
-   **Vehicle API performance** dashboard.
+   `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` from `.env`.
 
 ## Demo data
 
-A new database starts empty. After the backend is healthy (`docker compose ps`),
-load the sample inventory:
+A new database starts empty. Once the backend is healthy (`docker compose ps`),
+load 1,000 sample vehicles:
 
 ```sh
 docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < docs/sql/prepopulated_data/vehicles.sql
 ```
 
-Refresh the website to see 1,000 vehicles across the two dealerships. Filter by
-make, model, or age, and open a vehicle to save a proposal or review its history.
-Changes persist across restarts.
+Refresh the website. Filter by make, model, or age, then open a vehicle to save a
+proposal or view its history. Data persists across restarts.
 
-## Apply code changes
+## Monitoring
 
-Rebuild the app you changed:
+The [Vehicle API performance dashboard](http://localhost:3001/d/sv-vehicle) shows
+request counts, errors, response times, CPU, memory, and database connections.
+Use the website to generate traffic, then refresh Grafana after about 30 seconds.
+
+For logs, open **Explore**, select **Loki**, and run `{app="sv_vehicle"} | json`.
+Expand a log entry and click **View trace** when available. To browse traces,
+select **Tempo** and search for service `sv_vehicle`.
+
+To investigate a specific request, copy its `X-Trace-ID` response header from
+your browser's Network tab. In **Explore → Loki**, filter logs by that ID:
+
+```logql
+{app="sv_vehicle"} | json | traceId="0123456789abcdef0123456789abcdef"
+```
+
+Replace the example ID with your request's trace ID. In **Explore → Tempo**,
+select the **Trace ID** query type and paste the same ID to open the request's
+span waterfall. Allow a few seconds for logs and traces to arrive.
+
+See the [observability guide](backend/infra/README.md) for details.
+
+## Build and rebuild
+
+Build images without starting services:
 
 ```sh
+docker compose build backend frontend
+```
+
+After code changes, rebuild and restart the app you changed:
+
+```sh
+# Backend only
 docker compose up -d --build backend
+
+# Frontend only
 docker compose up -d --build frontend
 ```
 
-To rebuild both, run `docker compose up -d --build`. Database data is preserved.
+Run `docker compose up -d --build` to rebuild both. Database data is preserved.
 
 ## Stop
 
@@ -61,73 +86,38 @@ To rebuild both, run `docker compose up -d --build`. Database data is preserved.
 docker compose stop
 ```
 
-## Build
-
-To build both Docker images without starting services:
-
-```sh
-docker compose build backend frontend
-```
-
-The Docker builds package the apps; they do not run the test suites. Use
-`docker compose up -d --build` to build and start the complete application.
-
-## Monitoring
-
-Open [Grafana](http://localhost:3001) and sign in with the `GRAFANA_ADMIN_USER`
-and `GRAFANA_ADMIN_PASSWORD` from your root `.env` file. The default username/password is
-`admin`.
-
-Open the [Vehicle API performance dashboard](http://localhost:3001/d/sv-vehicle)
-to see request counts, errors, response times, CPU, memory, and database
-connections. Everything is configured automatically.
-
-To inspect logs, open **Explore**, choose **Loki**, and run
-`{app="sv_vehicle"} | json`. Expand a log entry and use **View trace**, when
-available, to see the request's trace. You can also choose **Tempo** in Explore
-and search for service `sv_vehicle` to inspect recent requests.
-
-See the [observability guide](backend/infra/README.md) for more detail.
-
 ## Test
-
-Java tests require Java 21 on the host. The k6 test requires k6 0.57 or newer.
 
 ### Java tests
 
+Requires Java 21. Integration tests also require Docker and use a disposable
+PostgreSQL container, separate from the application database.
+
 ```sh
-# Unit tests: Docker is not required.
+# Unit tests
 backend/services/sv_vehicle/gradlew -p backend/services/sv_vehicle test
 
-# Integration tests: Docker must be running.
+# Integration tests
 backend/services/sv_vehicle/gradlew -p backend/services/sv_vehicle integrationTest
 
-# Run both suites.
+# Both suites
 backend/services/sv_vehicle/gradlew -p backend/services/sv_vehicle check
 ```
 
-Integration tests start a disposable PostgreSQL container with Testcontainers
-and exercise the application through MockMvc. They do not require a running
-backend or Compose stack, and do not access your local database. If Docker is
-unavailable, the integration task fails rather than skipping the tests.
-
-HTML reports are available under
-`backend/services/sv_vehicle/build/reports/tests/test/` and
-`backend/services/sv_vehicle/build/reports/tests/integrationTest/`.
+HTML reports are in `backend/services/sv_vehicle/build/reports/tests/`.
 See the [Java testing guide](backend/services/sv_vehicle/TESTING.md) for details.
 
 ### k6 performance test
 
-With the Compose stack running and demo data loaded, run from the repository root:
+Requires k6 0.57 or newer, the Compose stack running, and demo data loaded.
 
 ```sh
 k6 run test/soak/soak.ts
 ```
 
-This runs for 30 minutes at 20 requests per second across the inventory, filter,
-login, and action APIs. Watch latency, errors, and resource usage in
-[Grafana](http://localhost:3001/d/sv-vehicle) during the run.
+Runs for 30 minutes at 20 requests per second across inventory, filter, login,
+and action APIs. Monitor the results in [Grafana](http://localhost:3001/d/sv-vehicle).
 
 Reports are saved to `test/soak/results/summary.txt` and `summary.json`.
-The test saves real action updates; they remain in the database afterward.
+Action updates made by the test remain in the database.
 See the [k6 guide](test/soak/README.md) for thresholds and configuration.
