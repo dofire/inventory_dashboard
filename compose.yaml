@@ -1,5 +1,45 @@
 name: kl-oa
 services:
+  backend:
+    build: ./backend/services/sv_vehicle
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-vehicle}
+      POSTGRES_USER: ${POSTGRES_USER:-vehicle}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      SERVER_PORT: 9001
+      APP_LOG_FILE: /app/logs/sv_vehicle.json
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://alloy:4318/v1/traces
+      TRACING_SAMPLE_RATE: ${TRACING_SAMPLE_RATE:-1.0}
+      SPAN_LOGS_ENABLED: ${SPAN_LOGS_ENABLED:-true}
+    ports: ["127.0.0.1:${SERVER_PORT:-9001}:9001"]
+    volumes:
+      - ${APP_LOG_DIR:-./backend/services/sv_vehicle/logs}:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      alloy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:9001/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    environment:
+      API_PROXY_TARGET: http://backend:9001
+      VITE_API_BASE_URL: /api
+    ports: ["127.0.0.1:${FRONTEND_PORT:-3000}:3000"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
   postgres:
     image: postgres:17.6-alpine
     environment:
@@ -20,8 +60,7 @@ services:
     image: prom/prometheus:v3.5.0
     entrypoint: ["/bin/sh", "/etc/prometheus/start.sh"]
     environment:
-      PROMETHEUS_TARGET: ${PROMETHEUS_TARGET:-host.docker.internal:9001}
-    extra_hosts: ["host.docker.internal:host-gateway"]
+      PROMETHEUS_TARGET: backend:9001
     ports: ["127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"]
     volumes:
       - ./backend/infra/prometheus:/etc/prometheus:ro

@@ -3,6 +3,13 @@
 React + strict TypeScript + Vite, Tailwind CSS, local shadcn-style Radix UI
 components, Zustand, TanStack Query, Day.js, React Hook Form, and Zod.
 
+## Run with Docker
+
+From the repository root, configure the root `.env` as described in the main
+README, then run `docker compose up -d --build`. Open http://localhost:3000.
+The container sets `API_PROXY_TARGET=http://backend:9001` and keeps browser
+requests on `/api`. No frontend `.env` is needed. Rebuild after source changes.
+
 ## Local development
 
 Use Node.js 22.14 or newer with npm. The lockfile pins the installed toolchain.
@@ -23,7 +30,7 @@ logic. Set `API_PROXY_TARGET` to change the development upstream.
 
 `VITE_API_BASE_URL` is a browser-facing build-time setting, default `/api`.
 For a containerized demonstration set the Vite proxy target to
-`http://sv_vehicle:9001` during development, or serve the production bundle behind
+`http://backend:9001` during development, or serve the production bundle behind
 a reverse proxy that forwards `/api/*` to the backend and strips `/api`.
 Vite's development proxy does not exist in the production build. Never use a
 container-only DNS name as the browser's API base URL. No credentials belong in

@@ -9,9 +9,13 @@ Feature requirements:
 
 ## Local development infrastructure
 
-Backend (9001) and frontend (3000) run on the host. Infrastructure-only Compose
-provides persistent PostgreSQL (5432), Prometheus (9090), Grafana (3001), Loki
-(3100), and internal Alloy. The vehicle service connects to PostgreSQL while
+`docker compose up -d --build` starts the backend (9001), frontend (3000),
+persistent PostgreSQL (5432), Prometheus (9090), Grafana (3001), Loki (3100),
+Tempo, and Alloy. Application images include Java 21 and Node.js 22. The frontend
+uses Vite with a same-origin `/api` proxy to the backend. The backend waits for
+healthy PostgreSQL and Alloy; the frontend waits for backend health. Database,
+telemetry, and shared file logs persist across container recreation. Rebuild
+application images after source changes. Host development remains optional. The vehicle service connects to PostgreSQL while
 using PostgreSQL-backed business repositories. It exposes health/Prometheus endpoints
 and writes correlated JSON logs to console and disk. Alloy ships file logs to
 Loki; trace IDs remain queryable JSON fields, never indexed labels. Grafana

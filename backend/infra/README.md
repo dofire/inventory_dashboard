@@ -1,19 +1,19 @@
 # Local development infrastructure
 
-Requirements: Docker Engine/Desktop with Compose v2, Java 21. Run commands from
-the repository root unless stated otherwise. Nothing here starts host apps.
+Requirements: Docker Engine/Desktop with Compose v2. Run commands from the
+repository root unless stated otherwise. Compose includes both applications.
 
 ## Configure and start
 
 ```sh
 cp .env.example .env
 # Edit .env: replace POSTGRES_PASSWORD and GRAFANA_ADMIN_PASSWORD with local secrets.
-mkdir -p backend/services/sv_vehicle/logs
 docker compose config --quiet
-docker compose up -d
+docker compose up -d --build
 docker compose ps
 ```
 
+The frontend is at http://localhost:3000 and the backend at http://localhost:9001.
 All published ports bind to loopback. PostgreSQL is at localhost:5432,
 Prometheus at http://localhost:9090, Grafana at http://localhost:3001, and
 Loki at http://localhost:3100, Tempo at http://localhost:3200, and Alloy OTLP/HTTP
@@ -24,7 +24,8 @@ days. Loki's health check validates configuration only (the official minimal
 image has no HTTP client); check `/ready` explicitly for live readiness.
 Other services have readiness checks. Alloy retries Loki delivery during startup.
 
-For local startup, use the launcher that loads the root `.env` and sets the
+For optional host development, stop the Compose apps with
+`docker compose stop backend frontend`, then use the launcher that loads the root `.env` and sets the
 service working directory automatically:
 
 ```sh
@@ -66,7 +67,7 @@ validates table mappings. SQL reference files in docs/sql/table remain docs;
 versioned migrations live in the service's resources/db/migration directory.
 There is no automatic inventory seeding or mock fallback.
 
-The frontend should run separately on port 3000 when its source is added.
+Compose runs the frontend on port 3000 and proxies `/api` to `backend:9001`.
 
 ## Verify after startup
 
@@ -121,18 +122,25 @@ the [Java testing guide](../services/sv_vehicle/TESTING.md).
 
 ## Network switching and final demonstration
 
-For host development use DB_HOST=localhost and
-PROMETHEUS_TARGET=host.docker.internal:9001. Compose supplies Linux's host-gateway
-mapping as well as Docker Desktop support. Ports are configurable in .env.example.
+Compose fixes internal connections to `postgres:5432`, `backend:9001`, and
+`alloy:4318`; host port overrides do not change these internal ports. Backend
+and Alloy share the `APP_LOG_DIR` bind mount, with backend logs written to
+`/app/logs/sv_vehicle.json`. Existing database and monitoring volumes are reused.
 
-For a future fully containerized demo, add backend/frontend services and build
-files, set DB_HOST=postgres, DB_PORT=5432, SERVER_PORT=9001,
-PROMETHEUS_TARGET=sv_vehicle:9001, and pass the database environment variables
-explicitly into the backend container. Mount a shared log volume into the backend
-and Alloy and set APP_LOG_FILE accordingly. Keep Grafana's internal data source
-URLs unchanged. Browser frontend API URLs must still use published host URLs or
-a reverse proxy; container DNS names do not resolve in the browser. No backend
-or frontend image/build configuration is included in this task.
+For host development use `DB_HOST=localhost` and set `DB_PORT` to the published
+PostgreSQL port. To scrape a host backend, create a Compose override file:
+
+```yaml
+services:
+  prometheus:
+    environment:
+      PROMETHEUS_TARGET: host.docker.internal:9001
+    extra_hosts: ["host.docker.internal:host-gateway"]
+```
+
+Apply it with `docker compose -f compose.yaml -f <override-file> up -d prometheus`.
+The root `PROMETHEUS_TARGET` setting is no longer used by the default stack.
+Host tracing uses the root `.env` endpoint; container tracing uses Alloy directly.
 
 ## Troubleshooting and cleanup
 
@@ -140,7 +148,7 @@ or frontend image/build configuration is included in this task.
   and set both `POSTGRES_PORT=5433` and `DB_PORT=5433` in your local `.env`
   (or choose another free host port). Rerun `docker compose up -d` and re-export
   `.env` before restarting Spring Boot. PostgreSQL inside Docker still uses
-  port 5432; a future containerized backend should use `DB_PORT=5432`.
+  port 5432; the Compose backend always uses internal `DB_PORT=5432`.
 
 - `FATAL: role "vehicle" does not exist`: check that Spring uses the Docker
   database host port, rather than a separate PostgreSQL instance on 5432. Use
@@ -149,8 +157,8 @@ or frontend image/build configuration is included in this task.
 - Database authentication: check the exported environment. Changing .env passwords
   does not change users in an existing database volume. Use SQL to change the
   password or deliberately reset disposable volumes.
-- Prometheus DOWN: ensure host app is listening on 9001, health works, and host
-  firewall allows Docker access. Avoid binding Spring to loopback only on Linux.
+- Prometheus DOWN: check `docker compose ps backend` and backend health. The default
+  scrape target is `backend:9001`.
 - Empty logs: check APP_LOG_FILE vs APP_LOG_DIR, file permissions, Docker Desktop
   file sharing, `docker compose logs alloy`, and the Explore time window. Generate
   an API request; startup messages do not contain trace IDs.
@@ -183,7 +191,7 @@ Tempo's minimal image has no HTTP health probe configured; `/ready` is the live
 readiness check. Allow startup time before testing. Alloy retries export if Tempo
 is not yet ready. The OTLP listener is not an HTTP health endpoint.
 
-2. Start the host application using `./tools/run-local.sh`, then issue a real API call:
+2. With the Compose backend healthy, issue a real API call:
 
 ```sh
 curl -i -H 'traceparent: 00-0123456789abcdef0123456789abcdef-0123456789abcdef-01' \

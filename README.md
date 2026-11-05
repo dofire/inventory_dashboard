@@ -7,78 +7,55 @@ price reductions or maintenance.
 The frontend uses React and TypeScript. The backend uses Java 21 and Spring Boot,
 with PostgreSQL for vehicle data and action history.
 
-## Before you start
+This implements **Scenario B: The Intelligent Inventory Dashboard** from the
+Keyloop technical assessment. The backend is the primary service implementation;
+the repository also includes a working frontend.
 
-Install:
+## Run
 
-- **Java 21**
-- **Node.js 22.14 or newer** and npm
-- **Docker Desktop** (or Docker Engine with Compose v2), running
+Prerequisite: Docker is installed and running.
 
-Gradle is included through the wrapper; you do not need to install it separately.
-Run the commands below from the repository root unless instructed otherwise.
+1. From the repository root, run:
 
-## Run locally
+   ```sh
+   docker compose up -d --build
+   ```
 
-### 1. Configure the application
+   On a fresh checkout, first copy `.env.example` to `.env` and set
+   `POSTGRES_PASSWORD` and `GRAFANA_ADMIN_PASSWORD`.
 
-For a fresh checkout:
+2. Open the [website](http://localhost:3000). Choose Tony or John and a dealership
+   to sign in. No password is required.
 
-```sh
-cp .env.example .env
-cp frontend/.env.example frontend/.env
-```
+3. Open [Grafana](http://localhost:3001/d/sv-vehicle). Sign in with
+   `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` from `.env` to view the
+   **Vehicle API performance** dashboard.
 
-Keep existing `.env` files if you already configured the project. In the root
-`.env`, replace `POSTGRES_PASSWORD` and `GRAFANA_ADMIN_PASSWORD` with your own
-local passwords. Do not commit these files. The backend launcher reads the root
-`.env` as shell configuration, so quote values containing shell special characters.
+## Demo data
 
-### 2. Start the database and monitoring tools
-
-```sh
-mkdir -p backend/services/sv_vehicle/logs
-docker compose up -d
-```
-
-Compose starts PostgreSQL, Prometheus, Loki, Tempo, Alloy, and Grafana. The backend
-and frontend run separately in the next two steps.
-
-### 3. Start the backend
-
-In one terminal:
+A new database starts empty. After the backend is healthy (`docker compose ps`),
+load the sample inventory:
 
 ```sh
-./tools/run-local.sh
+docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < docs/sql/prepopulated_data/vehicles.sql
 ```
 
-The backend runs at **http://localhost:9001**. Flyway creates missing database
-tables, and existing data is preserved. Check readiness at
-http://localhost:9001/actuator/health.
+Refresh the website to see 1,000 vehicles across the two dealerships. Filter by
+make, model, or age, and open a vehicle to save a proposal or review its history.
+Changes persist across restarts.
 
-### 4. Start the frontend
+## Apply code changes
 
-In another terminal, from the repository root:
+Rebuild the app you changed:
 
 ```sh
-npm --prefix frontend ci
-npm --prefix frontend run dev
+docker compose up -d --build backend
+docker compose up -d --build frontend
 ```
 
-Open **http://localhost:3000**. Sign in with `tony` or `john`, then choose
-`DEALER_HCM_001` or `DEALER_HN_002`.
+To rebuild both, run `docker compose up -d --build`. Database data is preserved.
 
-These are mock login accounts; inventory and action history use real PostgreSQL
-data. A new database starts empty—there is no automatic inventory seed. Existing
-vehicle data must use the selected dealership ID. See the
-[vehicle table definition](docs/sql/table/vehicle.sql) when importing data.
-
-Select a vehicle to view its details, review its full action history, and save
-a proposal. Removing a proposal clears its action and status while keeping the
-history. Changes survive backend
-restarts. If another user updated the same vehicle, refresh before saving again.
-
-To stop the infrastructure while keeping its data:
+## Stop
 
 ```sh
 docker compose stop
@@ -86,33 +63,18 @@ docker compose stop
 
 ## Build
 
-Build the backend JAR and frontend bundle:
+To build both Docker images without starting services:
 
 ```sh
-backend/services/sv_vehicle/gradlew -p backend/services/sv_vehicle bootJar
-npm --prefix frontend ci
-npm --prefix frontend run build
+docker compose build backend frontend
 ```
 
-Outputs are in `backend/services/sv_vehicle/build/libs/` and `frontend/dist/`.
-These commands build the application; run the tests separately as shown below.
-
-To run the built backend instead of the development launcher, use a new terminal
-from the repository root with the database already running:
-
-```sh
-set -a
-. ./.env
-set +a
-cd backend/services/sv_vehicle
-java -jar build/libs/sv_vehicle-0.0.1-SNAPSHOT.jar
-```
-
-For deployment, serve `frontend/dist/` with a web server that proxies `/api/*` to
-the backend and removes the `/api` prefix. Vite's development proxy is only used
-by `npm run dev`. See the [frontend guide](frontend/README.md) for configuration.
+The Docker builds package the apps; they do not run the test suites. Use
+`docker compose up -d --build` to build and start the complete application.
 
 ## Test
+
+Java tests require Java 21 on the host. The k6 test requires k6 0.57 or newer.
 
 ### Java tests
 
@@ -150,61 +112,39 @@ HTML reports are available under
 `backend/services/sv_vehicle/build/reports/tests/integrationTest/`.
 See the [Java testing guide](backend/services/sv_vehicle/TESTING.md) for details.
 
-### Frontend tests
+### k6 performance test
+
+With the Compose stack running and demo data loaded, run from the repository root:
 
 ```sh
-npm --prefix frontend ci
-npm --prefix frontend run typecheck
-npm --prefix frontend test
+k6 run test/soak/soak.ts
 ```
 
-Frontend tests cover filtering, sorting, pagination, proposal submission,
-conflicts, and keyboard interaction with dropdowns.
+This runs for 30 minutes at 20 requests per second across the inventory, filter,
+login, and action APIs. Watch latency, errors, and resource usage in
+[Grafana](http://localhost:3001/d/sv-vehicle) during the run.
 
-For the optional **30-minute, 20 RPS** performance test, follow the
-[k6 soak test guide](test/soak/README.md).
+Reports are saved to `test/soak/results/summary.txt` and `summary.json`.
+The test saves real action updates; they remain in the database afterward.
+See the [k6 guide](test/soak/README.md) for thresholds and configuration.
 
 ## Monitoring
 
-Open **http://localhost:3001** and sign into Grafana with the credentials from
-`.env`. The **Vehicle API performance** dashboard shows request rates, outcomes,
-API P95/P99 latency, CPU, memory, and database connections.
+Open [Grafana](http://localhost:3001) and sign in with the `GRAFANA_ADMIN_USER`
+and `GRAFANA_ADMIN_PASSWORD` from your root `.env` file. The default username is
+`admin`.
 
-Tempo shows request traces with business and JDBC spans. Logs include request
-and trace IDs for troubleshooting. See the
-[observability guide](backend/infra/README.md) for setup and verification.
+Open the [Vehicle API performance dashboard](http://localhost:3001/d/sv-vehicle)
+to see request counts, errors, response times, CPU, memory, and database
+connections. Everything is configured automatically.
 
-## AI Collaboration Narrative
+Try filtering vehicles and saving a proposal on the website, then wait about
+30 seconds and refresh Grafana. Select the last 15 minutes as the time range.
+A fresh stack may show empty charts until you use the application.
 
-### Strategy
+To inspect logs, open **Explore**, choose **Loki**, and run
+`{app="sv_vehicle"} | json`. Expand a log entry and use **View trace**, when
+available, to see the request's trace. You can also choose **Tempo** in Explore
+and search for service `sv_vehicle` to inspect recent requests.
 
-I used AI as an implementation partner, guided by concrete requirements and small,
-reviewable changes. I specified the API contracts, dealership behavior, project
-structure, and preference for simple, readable code. Existing project conventions
-and documentation guided implementation choices.
-
-### Verification and refinement
-
-I refined the output through specific feedback on both behavior and usability:
-separate API packages, automatic user attribution, stable filters, simpler dialogs,
-and consistent dropdowns. When a gap appeared—such as both dealerships showing
-the same vehicles—I clarified the expected behavior and extended the fix through
-the frontend, backend, and persistence layer.
-
-Verification combined type checking, compilation, unit tests, frontend interaction
-tests, and integration tests against real PostgreSQL through Testcontainers.
-Tests checked failure paths as well as successful requests, including stale
-versions, concurrent writes, and transaction rollback. Integration tests were
-rerun successfully once Docker was available; compilation alone was not treated
-as proof that database integration worked.
-
-### Final quality
-
-I favored established tools, including Micrometer for tracing and Radix for
-accessible controls, over unnecessary custom implementations. Database tests use
-isolated containers, SQL values use bound parameters, and API errors avoid
-exposing internal details. Documentation was updated when behavior changed.
-
-The result is a tested local-development application. Mock login remains a known
-limitation and must be replaced before treating this as a production authentication
-system.
+See the [observability guide](backend/infra/README.md) for more detail.
